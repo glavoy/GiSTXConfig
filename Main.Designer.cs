@@ -42,7 +42,7 @@
             this.ButtonXML.Name = "ButtonXML";
             this.ButtonXML.Size = new System.Drawing.Size(297, 98);
             this.ButtonXML.TabIndex = 0;
-            this.ButtonXML.Text = "Generate XML file(s)\r\nand/or\r\nMS Access database";
+            this.ButtonXML.Text = "Generate XML file(s)\r\nand/or SQLite database";
             this.ButtonXML.UseVisualStyleBackColor = true;
             this.ButtonXML.Click += new System.EventHandler(this.ButtonXML_Click);
             // 

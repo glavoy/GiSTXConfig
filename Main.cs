@@ -54,7 +54,7 @@ namespace generatexml
 
         //***************************
         // Path to XML file - this is where the generated xml files wil be written
-        readonly string xmlPath = "C:\\temp\\";
+        readonly string xmlPath = "C:\\GeoffOffline\\GiSTX\\assets\\surveys\\";
 
         //***************************
         // Path to log file
@@ -63,7 +63,7 @@ namespace generatexml
         //***************************
         // Path to database
         //readonly string db_path = "C:\\PRISMCOMP\\MSAccessDatabase\\PRISMCOMP.mdb";
-        readonly string db_path = "C:\\gistx\\database\\gistx.sqlite";
+        readonly string db_path = "C:\\gistx\\database\\fake_survey.sqlite";
 
         //***************************
         // Source database to copy tables
@@ -259,7 +259,7 @@ namespace generatexml
                 }
 
                 // Create the form changes table
-                // CreateFormChanges();
+                CreateFormChanges();
             }
             catch (Exception ex)
             {
@@ -1480,7 +1480,7 @@ namespace generatexml
 
                     // The last 'info' question ending every survey
                     string[] xmlEnd = {"\t<question type = 'information' fieldname = 'end_of_questions' fieldtype = 'n/a'>",
-                                   "\t\t<text>Press the 'Next' button to save the data.</text >", "\t</question>" };
+                                   "\t\t<text>Press the 'Finish' button to save the data.</text >", "\t</question>" };
                     foreach (string line in xmlEnd)
                         outputFile.WriteLine(line);
 
@@ -1802,12 +1802,14 @@ namespace generatexml
                     connection.Open();
 
                     string createTableQuery = @"
-                        CREATE TABLE IF NOT EXISTS formchanges (
-                            tablename TEXT,
-                            subjid TEXT,
-                            formdate TEXT,
-                            editdate TEXT,
-                            changedescription TEXT
+                        CREATE TABLE formchanges (
+                            changeid     INTEGER PRIMARY KEY AUTOINCREMENT,
+                            tablename    TEXT NOT NULL,
+                            fieldname    TEXT NOT NULL,
+                            uniqueid     TEXT NOT NULL,
+                            oldvalue     TEXT,
+                            newvalue     TEXT,
+                            changed_at   DATETIME DEFAULT (CURRENT_TIMESTAMP)
                         )";
 
                     using (var command = new SQLiteCommand(createTableQuery, connection))
@@ -1840,9 +1842,15 @@ namespace generatexml
 
                     string createTableQuery = @"
                         CREATE TABLE IF NOT EXISTS crfs (
-                            tablename TEXT,
-                            primarykey TEXT,
-                            displayname TEXT
+	                        tablename	TEXT,
+	                        primarykey	TEXT,
+	                        displayname	TEXT,
+	                        isbase	INTEGER DEFAULT 0,
+	                        linkingfield	TEXT,
+	                        parenttable	TEXT,
+	                        incrementfield	TEXT,
+	                        requireslink	INTEGER DEFAULT 0,
+	                        idconfig	TEXT
                         )";
 
                     using (var command = new SQLiteCommand(createTableQuery, connection))
@@ -1859,10 +1867,6 @@ namespace generatexml
         }
 
 
-
-
-
-
         private void AddDataToTable(Excel.Worksheet crf_ws)
         {
             try
@@ -1871,7 +1875,9 @@ namespace generatexml
                 {
                     connection.Open();
 
-                    string insertQuery = "INSERT INTO crfs (tablename, primarykey, displayname) VALUES (@tablename, @primarykey, @displayname)";
+                    string insertQuery =
+                        "INSERT INTO crfs (tablename, primarykey, displayname, isbase, linkingfield, parenttable, incrementfield, requireslink, idconfig) " +
+                        "VALUES (@tablename, @primarykey, @displayname, @isbase, @linkingfield, @parenttable, @incrementfield, @requireslink, @idconfig)";
 
                     using (var insertCommand = new SQLiteCommand(insertQuery, connection))
                     {
@@ -1883,6 +1889,12 @@ namespace generatexml
                             insertCommand.Parameters.AddWithValue("@tablename", ((Excel.Range)usedRange.Cells[row, 1]).Value2);
                             insertCommand.Parameters.AddWithValue("@primarykey", ((Excel.Range)usedRange.Cells[row, 2]).Value2);
                             insertCommand.Parameters.AddWithValue("@displayname", ((Excel.Range)usedRange.Cells[row, 3]).Value2);
+                            insertCommand.Parameters.AddWithValue("@isbase", ((Excel.Range)usedRange.Cells[row, 4]).Value2 ?? 0);
+                            insertCommand.Parameters.AddWithValue("@linkingfield", ((Excel.Range)usedRange.Cells[row, 5]).Value2);
+                            insertCommand.Parameters.AddWithValue("@parenttable", ((Excel.Range)usedRange.Cells[row, 6]).Value2);
+                            insertCommand.Parameters.AddWithValue("@incrementfield", ((Excel.Range)usedRange.Cells[row, 7]).Value2);
+                            insertCommand.Parameters.AddWithValue("@requireslink", ((Excel.Range)usedRange.Cells[row, 8]).Value2 ?? 0);
+                            insertCommand.Parameters.AddWithValue("@idconfig", ((Excel.Range)usedRange.Cells[row, 9]).Value2);
 
                             insertCommand.ExecuteNonQuery();
                         }
@@ -1895,6 +1907,7 @@ namespace generatexml
                 logstring.Add("ERROR: Could not add data to crfs table. " + ex.Message);
             }
         }
+
 
 
 
