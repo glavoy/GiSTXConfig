@@ -3,16 +3,31 @@
   "WorkspaceRootPath": "C:\\GeoffOffline\\GiSTConfigX\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{032DA3A3-8497-4AE4-B4AD-536CA541005F}|GistConfigX.csproj|c:\\geoffoffline\\gistconfigx\\config.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
-      "RelativeMoniker": "D:0:0:{032DA3A3-8497-4AE4-B4AD-536CA541005F}|GistConfigX.csproj|solutionrelative:config.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+      "AbsoluteMoniker": "D:0:0:{032DA3A3-8497-4AE4-B4AD-536CA541005F}|GistConfigX.csproj|c:\\geoffoffline\\gistconfigx\\excelreader.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{032DA3A3-8497-4AE4-B4AD-536CA541005F}|GistConfigX.csproj|solutionrelative:excelreader.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{032DA3A3-8497-4AE4-B4AD-536CA541005F}|GistConfigX.csproj|c:\\geoffoffline\\gistconfigx\\main.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form",
+      "RelativeMoniker": "D:0:0:{032DA3A3-8497-4AE4-B4AD-536CA541005F}|GistConfigX.csproj|solutionrelative:main.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{00000000-0000-0000-0000-000000000000}|\u003CSolution\u003E|GistConfigX||{04B8AB82-A572-4FEF-95CE-5222444B6B64}|"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{032DA3A3-8497-4AE4-B4AD-536CA541005F}|GistConfigX.csproj|c:\\geoffoffline\\gistconfigx\\main.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{032DA3A3-8497-4AE4-B4AD-536CA541005F}|GistConfigX.csproj|solutionrelative:main.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{032DA3A3-8497-4AE4-B4AD-536CA541005F}|GistConfigX.csproj|c:\\geoffoffline\\gistconfigx\\databasemanager.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{032DA3A3-8497-4AE4-B4AD-536CA541005F}|GistConfigX.csproj|solutionrelative:databasemanager.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{032DA3A3-8497-4AE4-B4AD-536CA541005F}|GistConfigX.csproj|c:\\geoffoffline\\gistconfigx\\main.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{032DA3A3-8497-4AE4-B4AD-536CA541005F}|GistConfigX.csproj|solutionrelative:main.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{032DA3A3-8497-4AE4-B4AD-536CA541005F}|GistConfigX.csproj|c:\\geoffoffline\\gistconfigx\\config.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{032DA3A3-8497-4AE4-B4AD-536CA541005F}|GistConfigX.csproj|solutionrelative:config.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{032DA3A3-8497-4AE4-B4AD-536CA541005F}|GistConfigX.csproj|c:\\geoffoffline\\gistconfigx\\properties\\resources.resx||{FF4D6ACA-9352-4A5F-821E-F4D6EBDCAB11}",
+      "RelativeMoniker": "D:0:0:{032DA3A3-8497-4AE4-B4AD-536CA541005F}|GistConfigX.csproj|solutionrelative:properties\\resources.resx||{FF4D6ACA-9352-4A5F-821E-F4D6EBDCAB11}"
     }
   ],
   "DocumentGroupContainers": [
@@ -22,7 +37,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 3,
+          "SelectedChildIndex": 1,
           "Children": [
             {
               "$type": "Bookmark",
@@ -30,39 +45,76 @@
             },
             {
               "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "ExcelReader.cs",
+              "DocumentMoniker": "C:\\GeoffOffline\\GiSTConfigX\\ExcelReader.cs",
+              "RelativeDocumentMoniker": "ExcelReader.cs",
+              "ToolTip": "C:\\GeoffOffline\\GiSTConfigX\\ExcelReader.cs",
+              "RelativeToolTip": "ExcelReader.cs",
+              "ViewState": "AgIAAHYCAAAAAAAAAADwvwAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-11-19T11:32:50.774Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "GistConfigX",
+              "DocumentMoniker": "C:\\GeoffOffline\\GiSTConfigX\\GistConfigX.csproj",
+              "RelativeDocumentMoniker": "GistConfigX.csproj",
+              "ToolTip": "C:\\GeoffOffline\\GiSTConfigX\\GistConfigX.csproj",
+              "RelativeToolTip": "GistConfigX.csproj",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
+              "WhenOpened": "2025-11-19T08:22:27.731Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
               "DocumentIndex": 1,
+              "Title": "Main.cs [Design]",
+              "DocumentMoniker": "C:\\GeoffOffline\\GiSTConfigX\\Main.cs",
+              "RelativeDocumentMoniker": "Main.cs",
+              "ToolTip": "C:\\GeoffOffline\\GiSTConfigX\\Main.cs [Design]",
+              "RelativeToolTip": "Main.cs [Design]",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-11-19T08:18:05.955Z",
+              "EditorCaption": " [Design]"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
               "Title": "DatabaseManager.cs",
               "DocumentMoniker": "C:\\GeoffOffline\\GiSTConfigX\\DatabaseManager.cs",
               "RelativeDocumentMoniker": "DatabaseManager.cs",
               "ToolTip": "C:\\GeoffOffline\\GiSTConfigX\\DatabaseManager.cs",
               "RelativeToolTip": "DatabaseManager.cs",
-              "ViewState": "AgIAAMYAAAAAAAAAAAAowNQAAAANAAAAAAAAAA==",
+              "ViewState": "AgIAAMYAAAAAAAAAAAAowNwAAAAkAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-11-19T07:18:01.927Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 3,
               "Title": "Main.cs",
               "DocumentMoniker": "C:\\GeoffOffline\\GiSTConfigX\\Main.cs",
               "RelativeDocumentMoniker": "Main.cs",
               "ToolTip": "C:\\GeoffOffline\\GiSTConfigX\\Main.cs",
               "RelativeToolTip": "Main.cs",
-              "ViewState": "AgIAAHwAAAAAAAAAAAAiwJoAAABIAAAAAAAAAA==",
+              "ViewState": "AgIAAAgAAAAAAAAAAAAAABsAAAAqAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-11-19T07:11:31.182Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 5,
               "Title": "config.json",
               "DocumentMoniker": "C:\\GeoffOffline\\GiSTConfigX\\config.json",
               "RelativeDocumentMoniker": "config.json",
               "ToolTip": "C:\\GeoffOffline\\GiSTConfigX\\config.json",
               "RelativeToolTip": "config.json",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAkAAAABAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAUAAAAVAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
               "WhenOpened": "2025-11-19T07:14:50.916Z",
               "EditorCaption": ""

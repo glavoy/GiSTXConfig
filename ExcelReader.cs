@@ -48,121 +48,143 @@ namespace generatexml
                 // Each question object is added to the QuestionList list.
                 for (int rowCount = 1; rowCount <= numRows; rowCount++)
                 {
-
-                    rowRange = worksheet.Cells[rowCount, numberOfColumns];
-
-                    string[] currentColumnNamesArr = new string[numberOfColumns];
-                    if (rowCount == 1)
+                    try
                     {
+                        rowRange = worksheet.Cells[rowCount, numberOfColumns];
 
-                        for (int i = 0; i < numberOfColumns; i++)
+                        string[] currentColumnNamesArr = new string[numberOfColumns];
+                        if (rowCount == 1)
                         {
-                            currentColumnNamesArr[i] = range.Cells[1, i + 1].Value2.ToString();
-                        }
-                        // Check to make sure the column names are correct
-                        if (!columnNamesArray.SequenceEqual(currentColumnNamesArr))
-                        {
-                            errorsEncountered = true;
-                            worksheetErrorsEncountered = true;
-                            logstring.Add("ERROR: " + "The header names in the " + worksheet.Name + " are incorrect. " + "Header names should be: " + "FieldName, QuestionType, FieldType, QuestionText, MaxCharacters, Responses, LowerRange, UpperRange, LogicCheck, DontKnow, Refuse, NA, Skip, Comments");
-                        }
-                    }
-                    else
-                    {
-                        if (!rowRange.MergeCells)
-                        {
-                            // Create a new question
-                            var curQuestion = new Question { };
 
-                            // Get the fieldName and verify it
-                            curQuestion.fieldName = range.Cells[rowCount, 1] != null && range.Cells[rowCount, 1].Value2 != null ? range.Cells[rowCount, 1].Value2.ToString() : "";
-                            CheckFieldName(worksheet.Name, curQuestion.fieldName);
-
-                            // Get the questionType
-                            curQuestion.questionType = range.Cells[rowCount, 2] != null && range.Cells[rowCount, 2].Value2 != null ? range.Cells[rowCount, 2].Value2.ToString() : "";
-
-                            // Get the fieldType
-                            curQuestion.fieldType = range.Cells[rowCount, 3] != null && range.Cells[rowCount, 3].Value2 != null ? range.Cells[rowCount, 3].Value.ToString() : "";
-
-                            // Get Question Text
-                            curQuestion.questionText = range.Cells[rowCount, 4] != null && range.Cells[rowCount, 4].Value2 != null ? range.Cells[rowCount, 4].Value2.ToString() : "";
-                            if (curQuestion.questionText == "" && curQuestion.questionType != "automatic")
+                            for (int i = 0; i < numberOfColumns; i++)
+                            {
+                                currentColumnNamesArr[i] = range.Cells[1, i + 1].Value2.ToString();
+                            }
+                            // Check to make sure the column names are correct
+                            if (!columnNamesArray.SequenceEqual(currentColumnNamesArr))
                             {
                                 errorsEncountered = true;
                                 worksheetErrorsEncountered = true;
-                                logstring.Add("ERROR - QuestionText: FieldName '" + curQuestion.fieldName + "' in worksheet '" + worksheet.Name + "' has blank QuestionText.");
+                                logstring.Add("ERROR: " + "The header names in the " + worksheet.Name + " are incorrect. " + "Header names should be: " + "FieldName, QuestionType, FieldType, QuestionText, MaxCharacters, Responses, LowerRange, UpperRange, LogicCheck, DontKnow, Refuse, NA, Skip, Comments");
                             }
-
-                            // Get max Characters
-                            curQuestion.maxCharacters = range.Cells[rowCount, 5] != null && range.Cells[rowCount, 5].Value2 != null ? range.Cells[rowCount, 5].Value2.ToString() : "-9";
-                            if (curQuestion.maxCharacters != "-9")
-                            {
-                                CheckMaxCharacters(worksheet.Name, curQuestion.maxCharacters, curQuestion.fieldName);
-                            }
-
-                            // Get the responses and then ensure that all questions and field types are correctly defined
-                            curQuestion.responses = range.Cells[rowCount, 6] != null && range.Cells[rowCount, 6].Value2 != null ? range.Cells[rowCount, 6].Value2.ToString() : "";
-                            // Need to check for blank reponses, but sometimes they are supposed to be blank if they are dynamically generated
-                            //if (curQuestion.responses == "" && curQuestion.questionType == "radio")
-                            //{
-                            //    errorsEncountered = true;
-                            //    worksheetErrorsEncountered = true;
-                            //    logstring.Add("ERROR - Responses: FieldName '" + curQuestion.fieldName + "' in worksheet '" + worksheet.Name + "' does not have any responses.");
-                            //}
-
-                            CheckQuestionFieldType(curQuestion.questionType, curQuestion.fieldType, curQuestion.fieldName, worksheet.Name, curQuestion.responses);
-
-                            // Get Lower range
-                            curQuestion.lowerRange = range.Cells[rowCount, 7] != null && range.Cells[rowCount, 7].Value2 != null ? range.Cells[rowCount, 7].Value2.ToString() : "-9";
-                            if (curQuestion.lowerRange != "-9")
-                            {
-                                CheckUpperLowerRange(worksheet.Name, curQuestion.lowerRange, curQuestion.fieldName, "LowerRange");
-                            }
-
-                            // Get Upper range
-                            curQuestion.upperRange = range.Cells[rowCount, 8] != null && range.Cells[rowCount, 8].Value2 != null ? range.Cells[rowCount, 8].Value2.ToString() : "-9";
-                            if (curQuestion.upperRange != "-9")
-                            {
-                                CheckUpperLowerRange(worksheet.Name, curQuestion.upperRange, curQuestion.fieldName, "UpperRange");
-                            }
-
-                            // Get Logic check
-                            curQuestion.logicCheck = range.Cells[rowCount, 9] != null && range.Cells[rowCount, 9].Value2 != null ? range.Cells[rowCount, 9].Value2.ToString() : "";
-                            if (curQuestion.logicCheck != "")
-                            {
-                                CheckLogicCheckSyntax(worksheet.Name, curQuestion.logicCheck, curQuestion.fieldName);
-                            }
-
-
-                            // Special Buttons
-                            // don't know
-                            curQuestion.dontKnow = range.Cells[rowCount, 10] != null && range.Cells[rowCount, 10].Value2 != null ? range.Cells[rowCount, 10].Value2.ToString() : "-9";
-                            if (curQuestion.dontKnow != "-9")
-                            {
-                                CheckSpecialButton(worksheet.Name, curQuestion.dontKnow, curQuestion.fieldName, "DontKnow");
-                            }
-                            //refuse
-                            curQuestion.refuse = range.Cells[rowCount, 11] != null && range.Cells[rowCount, 11].Value2 != null ? range.Cells[rowCount, 11].Value2.ToString() : "-9";
-                            if (curQuestion.refuse != "-9")
-                            {
-                                CheckSpecialButton(worksheet.Name, curQuestion.refuse, curQuestion.fieldName, "Refuse");
-                            }
-
-
-                            curQuestion.na = range.Cells[rowCount, 12] != null && range.Cells[rowCount, 12].Value2 != null ? range.Cells[rowCount, 12].Value2.ToString() : "-9";
-                            if (curQuestion.na != "-9")
-                            {
-                                CheckSpecialButton(worksheet.Name, curQuestion.na, curQuestion.fieldName, "NA");
-                            }
-
-
-                            curQuestion.skip = range.Cells[rowCount, 13] != null && range.Cells[rowCount, 13].Value2 != null ? range.Cells[rowCount, 13].Value2.ToString() : "";
-                            if (curQuestion.skip != "")
-                            {
-                                CheckSkipSyntax(worksheet.Name, curQuestion.skip, curQuestion.fieldName);
-                            }
-                            QuestionList.Add(curQuestion);
                         }
+                        else
+                        {
+                            if (!rowRange.MergeCells)
+                            {
+                                // Create a new question
+                                var curQuestion = new Question { };
+
+                                // Get the fieldName and verify it
+                                curQuestion.fieldName = range.Cells[rowCount, 1] != null && range.Cells[rowCount, 1].Value2 != null ? range.Cells[rowCount, 1].Value2.ToString() : "";
+                                if (string.IsNullOrEmpty(curQuestion.fieldName))
+                                {
+                                    errorsEncountered = true;
+                                    worksheetErrorsEncountered = true;
+                                    logstring.Add("ERROR - FieldName: Row " + rowCount + " in worksheet '" + worksheet.Name + "' has a blank FieldName.");
+                                    continue;
+                                }
+                                CheckFieldName(worksheet.Name, curQuestion.fieldName);
+
+                                // Get the questionType
+                                curQuestion.questionType = range.Cells[rowCount, 2] != null && range.Cells[rowCount, 2].Value2 != null ? range.Cells[rowCount, 2].Value2.ToString() : "";
+
+                                // Get the fieldType
+                                curQuestion.fieldType = range.Cells[rowCount, 3] != null && range.Cells[rowCount, 3].Value2 != null ? range.Cells[rowCount, 3].Value.ToString() : "";
+
+                                // Get Question Text
+                                curQuestion.questionText = range.Cells[rowCount, 4] != null && range.Cells[rowCount, 4].Value2 != null ? range.Cells[rowCount, 4].Value2.ToString() : "";
+                                if (curQuestion.questionText == "" && curQuestion.questionType != "automatic")
+                                {
+                                    errorsEncountered = true;
+                                    worksheetErrorsEncountered = true;
+                                    logstring.Add("ERROR - QuestionText: FieldName '" + curQuestion.fieldName + "' in worksheet '" + worksheet.Name + "' has blank QuestionText.");
+                                }
+
+                                // Get max Characters
+                                curQuestion.maxCharacters = range.Cells[rowCount, 5] != null && range.Cells[rowCount, 5].Value2 != null ? range.Cells[rowCount, 5].Value2.ToString() : "-9";
+                                if (curQuestion.maxCharacters != "-9")
+                                {
+                                    CheckMaxCharacters(worksheet.Name, curQuestion.maxCharacters, curQuestion.fieldName);
+                                }
+
+                                // Get the responses and then ensure that all questions and field types are correctly defined
+                                curQuestion.responses = range.Cells[rowCount, 6] != null && range.Cells[rowCount, 6].Value2 != null ? range.Cells[rowCount, 6].Value2.ToString() : "";
+                                // Need to check for blank reponses, but sometimes they are supposed to be blank if they are dynamically generated
+                                //if (curQuestion.responses == "" && curQuestion.questionType == "radio")
+                                //{
+                                //    errorsEncountered = true;
+                                //    worksheetErrorsEncountered = true;
+                                //    logstring.Add("ERROR - Responses: FieldName '" + curQuestion.fieldName + "' in worksheet '" + worksheet.Name + "' does not have any responses.");
+                                //}
+
+                                CheckQuestionFieldType(curQuestion.questionType, curQuestion.fieldType, curQuestion.fieldName, worksheet.Name, curQuestion.responses);
+
+                                // Get Lower range
+                                curQuestion.lowerRange = range.Cells[rowCount, 7] != null && range.Cells[rowCount, 7].Value2 != null ? range.Cells[rowCount, 7].Value2.ToString() : "-9";
+                                curQuestion.upperRange = range.Cells[rowCount, 8] != null && range.Cells[rowCount, 8].Value2 != null ? range.Cells[rowCount, 8].Value2.ToString() : "-9";
+                                if (curQuestion.questionType == "date")
+                                {
+                                    CheckDateRange(worksheet.Name, curQuestion.lowerRange, curQuestion.fieldName, "LowerRange");
+                                    CheckDateRange(worksheet.Name, curQuestion.upperRange, curQuestion.fieldName, "UpperRange");
+                                }
+                                else
+                                {
+                                    if (curQuestion.lowerRange != "-9")
+                                    {
+                                        CheckUpperLowerRange(worksheet.Name, curQuestion.lowerRange, curQuestion.fieldName, "LowerRange");
+                                    }
+                                    if (curQuestion.upperRange != "-9")
+                                    {
+                                        CheckUpperLowerRange(worksheet.Name, curQuestion.upperRange, curQuestion.fieldName, "UpperRange");
+                                    }
+                                }
+
+
+                                // Get Logic check
+                                curQuestion.logicCheck = range.Cells[rowCount, 9] != null && range.Cells[rowCount, 9].Value2 != null ? range.Cells[rowCount, 9].Value2.ToString() : "";
+                                if (curQuestion.logicCheck != "")
+                                {
+                                    CheckLogicCheckSyntax(worksheet.Name, curQuestion.logicCheck, curQuestion.fieldName);
+                                }
+
+
+                                // Special Buttons
+                                // don't know
+                                curQuestion.dontKnow = range.Cells[rowCount, 10] != null && range.Cells[rowCount, 10].Value2 != null ? range.Cells[rowCount, 10].Value2.ToString() : "-9";
+                                if (curQuestion.dontKnow != "-9")
+                                {
+                                    CheckSpecialButton(worksheet.Name, curQuestion.dontKnow, curQuestion.fieldName, "DontKnow");
+                                }
+                                //refuse
+                                curQuestion.refuse = range.Cells[rowCount, 11] != null && range.Cells[rowCount, 11].Value2 != null ? range.Cells[rowCount, 11].Value2.ToString() : "-9";
+                                if (curQuestion.refuse != "-9")
+                                {
+                                    CheckSpecialButton(worksheet.Name, curQuestion.refuse, curQuestion.fieldName, "Refuse");
+                                }
+
+
+                                curQuestion.na = range.Cells[rowCount, 12] != null && range.Cells[rowCount, 12].Value2 != null ? range.Cells[rowCount, 12].Value2.ToString() : "-9";
+                                if (curQuestion.na != "-9")
+                                {
+                                    CheckSpecialButton(worksheet.Name, curQuestion.na, curQuestion.fieldName, "NA");
+                                }
+
+
+                                curQuestion.skip = range.Cells[rowCount, 13] != null && range.Cells[rowCount, 13].Value2 != null ? range.Cells[rowCount, 13].Value2.ToString() : "";
+                                if (curQuestion.skip != "")
+                                {
+                                    CheckSkipSyntax(worksheet.Name, curQuestion.skip, curQuestion.fieldName);
+                                }
+                                QuestionList.Add(curQuestion);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        errorsEncountered = true;
+                        worksheetErrorsEncountered = true;
+                        logstring.Add("ERROR: An unexpected error occurred while processing row " + rowCount + " in worksheet '" + worksheet.Name + "'. The error was: " + ex.Message);
                     }
                 }
 
@@ -427,6 +449,27 @@ namespace generatexml
                 worksheetErrorsEncountered = true;
                 logstring.Add("ERROR - " + rangeName + ": FieldName '" + fieldname + "' in worksheet '" + worksheet + "' has a non-numeric value for " + rangeName + ": " + range);
                 return;
+            }
+        }
+
+        private void CheckDateRange(string worksheet, string range, string fieldname, string rangeName)
+        {
+            if (range == "-9")
+            {
+                errorsEncountered = true;
+                worksheetErrorsEncountered = true;
+                logstring.Add("ERROR - " + rangeName + ": FieldName '" + fieldname + "' in worksheet '" + worksheet + "' has a missing value for " + rangeName);
+                return;
+            }
+
+            if (range == "0" || range == "+0d" || range == "-0d") return;
+
+            string pattern = @"^([+-])(\d+)([dwmy])$";
+            if (!Regex.IsMatch(range, pattern))
+            {
+                errorsEncountered = true;
+                worksheetErrorsEncountered = true;
+                logstring.Add("ERROR - " + rangeName + ": FieldName '" + fieldname + "' in worksheet '" + worksheet + "' has an invalid format for " + rangeName + ": " + range);
             }
         }
 

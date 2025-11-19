@@ -60,11 +60,20 @@ namespace generatexml
 
 
                         // Upper and Lower range (numeric check)
-                        if (question.lowerRange != "-9")
+                        if (question.questionType != "date" && question.lowerRange != "-9")
                         {
                             outputFile.WriteLine("\t\t<numeric_check>");
                             outputFile.WriteLine(string.Concat("\t\t\t<values minvalue ='", question.lowerRange, "' maxvalue='", question.upperRange, "' other_values = '", question.lowerRange, "' message = 'Number must be between ", question.lowerRange, " and ", question.upperRange, "!'></values>"));
                             outputFile.WriteLine("\t\t</numeric_check>");
+                        }
+
+                        // Date range
+                        if (question.questionType == "date")
+                        {
+                            outputFile.WriteLine("\t\t<date_range>");
+                            outputFile.WriteLine(string.Concat("\t\t\t<min_date>", question.lowerRange, "</min_date>"));
+                            outputFile.WriteLine(string.Concat("\t\t\t<max_date>", question.upperRange, "</max_date>"));
+                            outputFile.WriteLine("\t\t</date_range>");
                         }
 
                         //  Logic Checks

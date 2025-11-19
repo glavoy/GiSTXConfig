@@ -24,6 +24,8 @@ namespace generatexml
             InitializeComponent();
         }
 
+        // Version
+        readonly string swVer = "2025-11-19";
 
         private void Main_Load(object sender, EventArgs e)
         {
@@ -39,8 +41,7 @@ namespace generatexml
 
         // Flags to determine if spreadsheet has errors
         Boolean errorsEncountered = false;
-        // Version
-        readonly string swVer = "2025-11-09";
+
 
 
 
@@ -100,13 +101,23 @@ namespace generatexml
                     {
                         ExcelReader excelReader = new ExcelReader();
                         excelReader.CreateQuestionList(worksheet);
-                        errorsEncountered = excelReader.errorsEncountered;
-                        logstring.AddRange(excelReader.logstring);
-                        QuestionList = excelReader.QuestionList;
-
-                        // If there are no errors in the spreadsheet, create XML files and write to database
-                        if (!errorsEncountered)
+                        if (excelReader.errorsEncountered)
                         {
+                            errorsEncountered = true;
+                        }
+                        logstring.AddRange(excelReader.logstring);
+                    }
+                }
+
+                if (!errorsEncountered)
+                {
+                    foreach (Worksheet worksheet in xlWorkBook.Worksheets)
+                    {
+                        if (worksheet.Name.Substring(worksheet.Name.Length - 3) == "_dd" || worksheet.Name.Substring(worksheet.Name.Length - 4) == "_xml")
+                        {
+                            ExcelReader excelReader = new ExcelReader();
+                            excelReader.CreateQuestionList(worksheet);
+                            QuestionList = excelReader.QuestionList;
                             // Write to the XML file
                             XmlGenerator xmlGenerator = new XmlGenerator();
                             xmlGenerator.WriteXML(worksheet.Name, QuestionList, config.xmlPath);
@@ -122,35 +133,35 @@ namespace generatexml
                                 }
                             }
                         }
-                    }
-                    // Get the primary keys for the tables
-                    else
-                    {
-                        if (worksheet.Name == "crfs")
+                        // Get the primary keys for the tables
+                        else
                         {
-                            // Get the range of used cells in the Excel file
-                            range = worksheet.UsedRange;
-
-                            // Variable to get the total number of rows used in the Excel file
-                            int numRows = range.Rows.Count;
-
-                            // Add the Primary Keys to the dictionary
-                            for (int rowCount = 2; rowCount <= numRows; rowCount++)
+                            if (worksheet.Name == "crfs")
                             {
-                                Primary_Keys.Add(range.Cells[rowCount, 1].Value2.ToString(), range.Cells[rowCount, 2].Value2.ToString());
-                            }
+                                // Get the range of used cells in the Excel file
+                                range = worksheet.UsedRange;
 
-                            // Create the crfs table
-                            if (radioButtonBoth.Checked == true)
-                            {
-                                dbManager.CreateCrfsTable(config.db_path);
-                                dbManager.AddDataToTable(worksheet, config.db_path);
-                                logstring.AddRange(dbManager.logstring);
+                                // Variable to get the total number of rows used in the Excel file
+                                int numRows = range.Rows.Count;
+
+                                // Add the Primary Keys to the dictionary
+                                for (int rowCount = 2; rowCount <= numRows; rowCount++)
+                                {
+                                    Primary_Keys.Add(range.Cells[rowCount, 1].Value2.ToString(), range.Cells[rowCount, 2].Value2.ToString());
+                                }
+
+                                // Create the crfs table
+                                if (radioButtonBoth.Checked == true)
+                                {
+                                    dbManager.CreateCrfsTable(config.db_path);
+                                    dbManager.AddDataToTable(worksheet, config.db_path);
+                                    logstring.AddRange(dbManager.logstring);
+                                }
                             }
                         }
                     }
                 }
-                if (radioButtonBoth.Checked == true)
+                if (radioButtonBoth.Checked == true && !string.IsNullOrEmpty(config.sourceDatabasePath))
                 {
                     dbManager.CopyMasterTables(config.sourceDatabasePath, config.db_path, config.sourceTableNames); // This copies the villages table and census survey table
                     logstring.AddRange(dbManager.logstring);

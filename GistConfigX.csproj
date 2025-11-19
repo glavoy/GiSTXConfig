@@ -102,6 +102,7 @@
     <Content Include="config.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
+    <None Include="images\gistx.png" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config">
