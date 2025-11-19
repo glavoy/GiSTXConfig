@@ -694,125 +694,59 @@ namespace generatexml
         {
             try
             {
-                // This stores the text for the logicCheck
-                string[] logicChecks = logicCheck.Split(new string[] { "\n", "\r\n" }, StringSplitOptions.RemoveEmptyEntries);
+                // The new format is: expression; 'error message'
+                // Example: tabletnum2 != tabletnum; 'This does not match your previous entry!'
+                // Example: (movedate_month = '2' and movedate_day = '29') or (movedate_month = '2' and movedate_day = '30'); 'Invalid day'
 
-                int lenSkip;
-                string logicType;
-
-                // Populate the list for each type of logic checks
-                foreach (string check in logicChecks)
+                // Make sure the logic check contains a semicolon
+                if (!logicCheck.Contains(";"))
                 {
-                    // Make sure the logic check contains ", error_message "
-                    if (!check.Contains(", error_message "))
+                    errorsEncountered = true;
+                    worksheetErrorsEncountered = true;
+                    logstring.Add("ERROR - LogicCheck: FieldName '" + fieldname + "' in worksheet '" + worksheet + "' has invalid syntax for LogicCheck (missing semicolon): " + logicCheck);
+                    return;
+                }
+
+                // Split by semicolon to get logic expression and message
+                string[] parts = logicCheck.Split(new char[] { ';' }, 2);
+                if (parts.Length != 2)
+                {
+                    errorsEncountered = true;
+                    worksheetErrorsEncountered = true;
+                    logstring.Add("ERROR - LogicCheck: FieldName '" + fieldname + "' in worksheet '" + worksheet + "' has invalid syntax for LogicCheck: " + logicCheck);
+                    return;
+                }
+
+                string expression = parts[0].Trim();
+                string message = parts[1].Trim();
+
+                // Check that the message is in single quotes
+                if (!message.StartsWith("'") || !message.EndsWith("'"))
+                {
+                    errorsEncountered = true;
+                    worksheetErrorsEncountered = true;
+                    logstring.Add("ERROR - LogicCheck: FieldName '" + fieldname + "' in worksheet '" + worksheet + "' has invalid syntax for LogicCheck (message must be in single quotes): " + logicCheck);
+                    return;
+                }
+
+                // Basic validation that the expression contains some comparison operator
+                string[] operators = { "=", "!=", "<>", ">", ">=", "<", "<=", "and", "or" };
+                bool hasOperator = false;
+                foreach (string op in operators)
+                {
+                    if (expression.Contains(op))
                     {
-                        errorsEncountered = true;
-                        worksheetErrorsEncountered = true;
-                        logstring.Add("ERROR - LogicCheck: FieldName '" + fieldname + "' in worksheet '" + worksheet + "' has invalid syntax for LogicCheck: " + check);
-                        return;
+                        hasOperator = true;
+                        break;
                     }
+                }
 
-                    // Make sure the logic check starts with 'dynamic' or 'fixed'
-                    // Split the logic string into two parts: one before the : and one after
-                    // Get length of skip and type of logic check
-                    logicType = check.Substring(0, check.IndexOf(@":")) == "dynamic" ? "dynamic" : "fixed";
-                    if (logicType != "dynamic" && logicType != "fixed")
-                    {
-                        errorsEncountered = true;
-                        worksheetErrorsEncountered = true;
-                        logstring.Add("ERROR - LogicCheck: FieldName '" + fieldname + "' in worksheet '" + worksheet + "' has invalid syntax for LogicCheck: " + check);
-                        return;
-                    }
-
-                    // Make sure the logic check has one comma and one comma only
-                    string[] parts = check.Split(','); // split the string using the comma delimiter
-                    if (parts.Length != 2)
-                    {
-                        errorsEncountered = true;
-                        worksheetErrorsEncountered = true;
-                        logstring.Add("ERROR - LogicCheck: FieldName '" + fieldname + "' in worksheet '" + worksheet + "' has invalid syntax for LogicCheck: " + check);
-                        return;
-                    }
-
-                    lenSkip = logicType == "dynamic" ? 12 : 10;
-
-                    string message_section = parts[1];
-                    string logic_section = parts[0];
-
-                    // Make sure the logic section has 4 spaces and 1 : (colon)
-                    string[] logicString = logic_section.Split(':'); // split the string using :
-                    if (logicString.Length != 2)
-                    {
-                        errorsEncountered = true;
-                        worksheetErrorsEncountered = true;
-                        logstring.Add("ERROR - LogicCheck: FieldName '" + fieldname + "' in worksheet '" + worksheet + "' has invalid syntax for LogicCheck: " + check);
-                        return;
-                    }
-                    logicString = logic_section.Split(' '); // split the string using space
-                    if (logicString.Length != 5 && !logic_section.Contains("does not contain") && !logic_section.Contains("'and'"))
-                    {
-                        errorsEncountered = true;
-                        worksheetErrorsEncountered = true;
-                        logstring.Add("ERROR - LogicCheck: FieldName '" + fieldname + "' in worksheet '" + worksheet + "' has invalid syntax for LogicCheck: " + check);
-                        return;
-                    }
-
-                    // Check number of 'words' for 'does not contain'
-                    if (logicString.Length != 7 && logic_section.Contains("does not contain"))
-                    {
-                        errorsEncountered = true;
-                        worksheetErrorsEncountered = true;
-                        logstring.Add("ERROR - LogicCheck: FieldName '" + fieldname + "' in worksheet '" + worksheet + "' has invalid syntax for LogicCheck: " + check);
-                        return;
-                    }
-
-                    // Check number of 'words' for 'and'
-                    if (logicString.Length != 9 && logic_section.Contains("'and'"))
-                    {
-                        errorsEncountered = true;
-                        worksheetErrorsEncountered = true;
-                        logstring.Add("ERROR - LogicCheck: FieldName '" + fieldname + "' in worksheet '" + worksheet + "' has invalid syntax for LogicCheck: " + check);
-                        return;
-                    }
-
-                    // Create a list to store the index of each 'space' in the skip text
-                    var spaceIndices = new List<int>();
-                    var spaceIndicesLogic = new List<int>();
-                    var spaceIndicesMessage = new List<int>();
-
-                    // Populate the spaceIndices list
-                    for (int i = 0; i < check.Length; i++)
-                        if (check[i] == ' ') spaceIndices.Add(i);
-
-                    // Check if the field to check is a single word
-                    string fieldname_to_check = check.Substring(lenSkip, spaceIndices[2] - spaceIndices[1] - 1);
-                    if (fieldname_to_check.Contains(" "))
-                    {
-                        errorsEncountered = true;
-                        worksheetErrorsEncountered = true;
-                        logstring.Add("ERROR - LogicCheck: FieldName '" + fieldname + "' in worksheet '" + worksheet + "' has invalid syntax for LogicCheck: " + check);
-                        return;
-                    }
-                    string condition;
-
-
-
-                    // Check for the condition 'does not contain' or 'contains'
-                    if (!logic_section.Contains("does not contain"))
-                    {
-                        // Make sure the condition is correct
-                        condition = check.Substring(spaceIndices[2] + 1, spaceIndices[3] - spaceIndices[2] - 1);
-                        string[] conditions = { "=", ">", ">=", "<", "<=", "<>", "'contains'" }; // example string array
-
-                        if (!conditions.Contains(condition))
-                        {
-                            errorsEncountered = true;
-                            worksheetErrorsEncountered = true;
-                            logstring.Add("ERROR - LogicCheck: FieldName '" + fieldname + "' in worksheet '" + worksheet + "' has invalid syntax for LogicCheck: " + check);
-                            return;
-                        }
-                    }
-
+                if (!hasOperator)
+                {
+                    errorsEncountered = true;
+                    worksheetErrorsEncountered = true;
+                    logstring.Add("ERROR - LogicCheck: FieldName '" + fieldname + "' in worksheet '" + worksheet + "' has invalid syntax for LogicCheck (no operator found): " + logicCheck);
+                    return;
                 }
             }
             // Error handling in case we could not create the Excel file
@@ -983,10 +917,6 @@ namespace generatexml
             string curFieldname = "";
             try
             {
-                string fieldname1 = "";
-                string fieldname2 = "";
-                string logicType = "";
-
                 // Create a list of all the fieldnames in the worksheet
                 List<string> fieldnames = new List<string>();
                 foreach (Question question in QuestionList)
@@ -994,82 +924,58 @@ namespace generatexml
                     fieldnames.Add(question.fieldName);
                 }
 
-
                 foreach (Question question in QuestionList)
                 {
                     if (question.logicCheck != "")
                     {
                         curFieldname = question.fieldName;
 
-                        string[] logicchecks = question.logicCheck.Split(new string[] { "\n", "\r\n" }, StringSplitOptions.RemoveEmptyEntries);
+                        // New format: extract expression from "expression; 'message'"
+                        string[] parts = question.logicCheck.Split(new char[] { ';' }, 2);
+                        string expression = parts[0].Trim();
 
-                        foreach (string logiccheck in logicchecks)
+                        // Extract potential field names from the expression
+                        // Remove quoted strings first to avoid matching field names in quotes
+                        string cleanExpression = Regex.Replace(expression, @"'[^']*'", "");
+
+                        // Match word characters (field names) - excluding operators and numbers
+                        // Field names are alphanumeric + underscore, starting with a letter
+                        MatchCollection matches = Regex.Matches(cleanExpression, @"\b[a-z_][a-z0-9_]*\b");
+
+                        HashSet<string> referencedFieldNames = new HashSet<string>();
+                        foreach (Match match in matches)
                         {
-                            logicType = logiccheck.Substring(0, logiccheck.IndexOf(@":")) == "dynamic" ? "dynamic" : "fixed";
-
-                            string[] words = logiccheck.Split(' ');
-
-                            // Dynamic logic type
-                            if (logicType == "dynamic")
+                            string potentialFieldName = match.Value;
+                            // Skip SQL/logic keywords
+                            if (potentialFieldName != "and" && potentialFieldName != "or" && potentialFieldName != "not")
                             {
-                                if (logiccheck.Contains("does not contain"))
-                                {
-                                    fieldname1 = words[2];
-                                    fieldname2 = words[6].Replace(",", "");
-                                }
-                                else
-                                {
-                                    fieldname1 = words[2];
-                                    fieldname2 = words[4].Replace(",", "");
-                                }
-                            }
-
-                            // Fixed logic type
-                            if (logicType == "fixed")
-                            {
-                                fieldname1 = words[2];
-                                fieldname2 = words[6].Replace(",", "");
+                                referencedFieldNames.Add(potentialFieldName);
                             }
                         }
 
-                        // Check if the field name 1 to check value of exists and is equal to or before the current question
-                        if (fieldnames.Contains(fieldname1))
+                        // Check each referenced field name
+                        foreach (string referencedFieldName in referencedFieldNames)
                         {
-                            int fieldname_to_check_index = fieldnames.IndexOf(fieldname1);
-                            int curFieldnameIndex = fieldnames.IndexOf(curFieldname);
+                            // Check if it exists in the fieldnames list
+                            if (fieldnames.Contains(referencedFieldName))
+                            {
+                                int fieldname_to_check_index = fieldnames.IndexOf(referencedFieldName);
+                                int curFieldnameIndex = fieldnames.IndexOf(curFieldname);
 
-                            if (fieldname_to_check_index > curFieldnameIndex)
+                                // Check if the referenced field is after the current question
+                                if (fieldname_to_check_index > curFieldnameIndex)
+                                {
+                                    errorsEncountered = true;
+                                    worksheetErrorsEncountered = true;
+                                    logstring.Add("ERROR - LogicCheck: In worksheet '" + worksheet + "', the LogicCheck for FieldName '" + curFieldname + "' uses a FieldName AFTER the current question: " + referencedFieldName);
+                                }
+                            }
+                            else
                             {
                                 errorsEncountered = true;
                                 worksheetErrorsEncountered = true;
-                                logstring.Add("ERROR - LogicCheck: In worksheet '" + worksheet + "', the LogicCheck for FieldName '" + curFieldname + "' uses a FieldName AFTER the current question: " + fieldname1);
+                                logstring.Add("ERROR - LogicCheck: In worksheet '" + worksheet + "', the LogicCheck for FieldName '" + curFieldname + "' uses a nonexistent FieldName: " + referencedFieldName);
                             }
-                        }
-                        else
-                        {
-                            errorsEncountered = true;
-                            worksheetErrorsEncountered = true;
-                            logstring.Add("ERROR - LogicCheck: In worksheet '" + worksheet + "', the LogicCheck for FieldName '" + curFieldname + "' uses a nonexistent FieldName: " + fieldname1);
-                        }
-
-                        // Check if the field name 2 to check value of exists and is equal to or before the current question
-                        if (fieldnames.Contains(fieldname2))
-                        {
-                            int fieldname_to_check_index = fieldnames.IndexOf(fieldname2);
-                            int curFieldnameIndex = fieldnames.IndexOf(curFieldname);
-
-                            if (fieldname_to_check_index > curFieldnameIndex)
-                            {
-                                errorsEncountered = true;
-                                worksheetErrorsEncountered = true;
-                                logstring.Add("ERROR - LogicCheck: In worksheet '" + worksheet + "', the LogicCheck for FieldName '" + curFieldname + "' uses a FieldName AFTER the current question: " + fieldname2);
-                            }
-                        }
-                        else
-                        {
-                            errorsEncountered = true;
-                            worksheetErrorsEncountered = true;
-                            logstring.Add("ERROR - LogicCheck: In worksheet '" + worksheet + "', the LogicCheck for FieldName '" + curFieldname + "' uses a nonexistent FieldName: " + fieldname2);
                         }
                     }
                 }
@@ -1334,55 +1240,13 @@ namespace generatexml
                             outputFile.WriteLine("\t\t</numeric_check>");
                         }
 
-                        //  Logic Checks (Added by werick)                
+                        //  Logic Checks (Added by werick)
                         if (question.logicCheck != "")
                         {
-                            // This stores the text for the skip
-                            string[] logicChecks = question.logicCheck.Split(new string[] { "\n", "\r\n" }, StringSplitOptions.RemoveEmptyEntries);
-
-                            // Lists to store logic checks
-                            List<string> dynamicLogicCheck = new List<string>();
-                            List<string> fixedLogicCheck = new List<string>();
-
-
-                            // Populate the list for each type of logic checks
-                            foreach (string check in logicChecks)
-                            {
-                                int index = check.IndexOf(@":");
-
-                                if (check.Substring(0, index) == "dynamic")
-                                    dynamicLogicCheck.Add(check);
-
-                                if (check.Substring(0, index) == "fixed")
-                                    fixedLogicCheck.Add(check);
-
-                            }
-
-
-                            // Create text dynamic
-                            if (dynamicLogicCheck.Count > 0)
-                            {
-                                outputFile.WriteLine("\t\t<logic_check>");
-                                foreach (string logic in dynamicLogicCheck)
-                                {
-                                    // Call the GenerateSkips() function
-                                    outputFile.WriteLine(GenerateLogicChecks(logic, "dynamic"));
-                                }
-                                outputFile.WriteLine("\t\t</logic_check>");
-                            }
-
-                            // Create text dynamic
-                            if (fixedLogicCheck.Count > 0)
-                            {
-                                outputFile.WriteLine("\t\t<logic_check>");
-                                foreach (string logic in fixedLogicCheck)
-                                {
-                                    // Call the GenerateSkips() function
-                                    outputFile.WriteLine(GenerateLogicChecks(logic, "fixed"));
-                                }
-                                outputFile.WriteLine("\t\t</logic_check>");
-                            }
-
+                            // New format: just output the logic check directly
+                            outputFile.WriteLine("\t\t<logic_check>");
+                            outputFile.WriteLine(GenerateLogicChecks(question.logicCheck));
+                            outputFile.WriteLine("\t\t</logic_check>");
                         }
 
                         // Write responses if it is a radio or checkbox type question
@@ -1570,123 +1434,57 @@ namespace generatexml
         //////////////////////////////////////////////////////////////////////
         // Function to generate the text for the logic checks
         //////////////////////////////////////////////////////////////////////
-        private string GenerateLogicChecks(string logic, string logicType)
+        private string GenerateLogicChecks(string logicCheck)
         {
-            // Number of initial characters depending on whether it's a preskip or postskip
-            int lenSkip = logicType == "dynamic" ? 12 : 10;
+            // New format: expression; 'error message'
+            // Example: tabletnum2 != tabletnum; 'This does not match your previous entry!'
 
+            // Split by semicolon to get expression and message
+            string[] parts = logicCheck.Split(new char[] { ';' }, 2);
+            string expression = parts[0].Trim();
+            string message = parts[1].Trim();
 
-            // uncomment to debug this section
-            //Console.WriteLine("Logic String: " + logic);
+            // Replace operators with XML entities
+            expression = expression.Replace("!=", "&lt;&gt;");
+            expression = expression.Replace("<>", "&lt;&gt;");
+            expression = expression.Replace("<=", "&lt;=");
+            expression = expression.Replace(">=", "&gt;=");
+            // Replace individual < and > that aren't part of <= or >=
+            expression = Regex.Replace(expression, @"(?<!&lt;)(?<!&gt;)<(?!=)", "&lt;");
+            expression = Regex.Replace(expression, @"(?<!&lt;=)(?<!&gt;=)>(?!=)", "&gt;");
 
-            //Split the logi string into two parts: 1 - the logic condition and the error message
-            int index = logic.IndexOf(@",");
+            StringBuilder result = new StringBuilder();
 
-            string message_section = logic.Substring(index + 1);
-            string logic_section = logic.Substring(0, index);
-
-
-            // Create a list to store the index of each 'space' in the skip text
-            var spaceIndices = new List<int>();
-            var spaceIndicesLogic = new List<int>();
-            var spaceIndicesMessage = new List<int>();
-
-            // Populate the spaceIndices list
-            for (int i = 0; i < logic.Length; i++)
-                if (logic[i] == ' ') spaceIndices.Add(i);
-
-            for (int i = 0; i < logic_section.Length; i++)
-                if (logic_section[i] == ' ') spaceIndicesLogic.Add(i);
-
-            for (int i = 0; i < message_section.Length; i++)
-                if (message_section[i] == ' ') spaceIndicesMessage.Add(i);
-
-
-            // Get the name of the field to check for skip
-            string fieldname_to_check = logic.Substring(lenSkip, spaceIndices[2] - spaceIndices[1] - 1);
-
-            // Variables to store the condition and the value of the skip
-            string condition;
-            string condition2 = "=";
-            string value;
-            string currentresponse = "1";
-            string pattern = @"(=|<>|<|<=|>|>=)";
-
-            //set the current response for fixed logic types
-            if (logicType == "fixed")
+            // Check if expression contains 'or' - if so, format it across multiple lines
+            if (expression.Contains(" or "))
             {
-                currentresponse = logic_section.Substring(spaceIndicesLogic[spaceIndicesLogic.Count - 1] + 1);
-                foreach (var testString in logic_section)
+                string[] orParts = expression.Split(new string[] { " or " }, StringSplitOptions.None);
+
+                for (int i = 0; i < orParts.Length; i++)
                 {
-                    var matches = Regex.Matches(logic_section, pattern);
-                    if (matches.Count > 0)
+                    result.Append("\t\t\t");
+                    result.Append(orParts[i].Trim());
+
+                    if (i < orParts.Length - 1)
                     {
-                        var lastMatch = matches[matches.Count - 1];
-                        condition2 = lastMatch.Value;
-                        condition2 = condition2.Replace("<", "&lt;").Replace(">", "&gt;");
+                        result.Append(" or");
+                        result.AppendLine();
                     }
                 }
+                result.AppendLine(";");
+                result.Append("\t\t\t");
+                result.Append(message);
             }
-
-            // If there are 6 spaces in the logic section, then we know that the condition is 'does not contain'
-            if (logic_section.Contains("does not contain"))
-            {
-                // Get the condition
-                condition = "does not contain";
-                // Get the value
-                value = logic_section.Substring(spaceIndicesLogic[spaceIndicesLogic.Count - 1] + 1);
-            }
-            // Check if the condition has 'contains'
-            else if (logic_section.Contains("contains"))
-            {
-                // Get the condition
-                condition = "contains";
-                // Get the value
-                value = logic_section.Substring(spaceIndicesLogic[spaceIndicesLogic.Count - 1] + 1);
-
-            }
-
-            // Check if the skip has 'and'
-            else if (logic_section.Contains("'and'"))
-            {
-                // Get the condition
-                condition = logic.Substring(spaceIndices[2] + 1, spaceIndices[3] - spaceIndices[2] - 1);
-
-                // Replace '<' and '>' symbols, if necessary
-                condition = condition.Replace("<", "&lt;");
-                condition = condition.Replace(">", "&gt;");
-
-                // Get the value
-                value = logic.Substring(spaceIndices[3] + 1, spaceIndices[4] - spaceIndices[3] - 1);
-
-
-            }
-            // Skip does not have 'does not contain' or 'contains'
             else
             {
-                // Get the condition
-                condition = logic.Substring(spaceIndices[2] + 1, spaceIndices[3] - spaceIndices[2] - 1);
-
-                // Replace '<' and '>' symbols, if necessary
-                condition = condition.Replace("<", "&lt;");
-                condition = condition.Replace(">", "&gt;");
-
-                // Get the value
-                //value = logic.Substring(spaceIndices[3] + 1, spaceIndices[4] - spaceIndices[3] - 2);
-                value = logic_section.Substring(spaceIndicesLogic[spaceIndicesLogic.Count - 1] + 1);
+                // Single line format
+                result.Append("\t\t\t");
+                result.Append(expression);
+                result.Append("; ");
+                result.Append(message);
             }
 
-            // Get the error message
-            string error_message = message_section.Substring(spaceIndicesMessage[1] + 1);
-
-            // Build the string and return it
-            return string.Concat("\t\t\t<logic fieldname='", fieldname_to_check,
-                                 "' condition = '", condition,
-                                 "' response = '", value,
-                                 "' response_type = '", logicType,
-                                 "' condition2 = '", condition2,
-                                 "' currentresponse = '", currentresponse,
-                                 "' message = '", error_message, "'></logic>");
+            return result.ToString();
         }
 
 
