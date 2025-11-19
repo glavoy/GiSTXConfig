@@ -71,7 +71,7 @@ namespace generatexml
 
         //***************************
         // name of the source tables to copy
-        public string[] sourceTableNames = { "config"};
+        public string[] sourceTableNames = {"config"};
 
 
         //log string
@@ -122,6 +122,7 @@ namespace generatexml
 
                 // Start logging of any error
                 logstring.Add("Log file for: " + excelFile);
+                Primary_Keys.Clear();
 
                 // Open the Excel file
                 Excel.Application xlApp;
@@ -135,7 +136,7 @@ namespace generatexml
                 // Create a blank database
                 if (radioButtonBoth.Checked == true)
                 {
-                    CreateMSAccessDatabase();
+                    CreateSQLiteDatabase();
                 }
 
                 // Read each sheet of the Excel file and generate list of questions
@@ -145,9 +146,6 @@ namespace generatexml
                     if (worksheet.Name.Substring(worksheet.Name.Length - 3) == "_dd" || worksheet.Name.Substring(worksheet.Name.Length - 4) == "_xml")
                     {
                         CreateQuestionList(worksheet);
-
-                        //// Check for duplicate columns in the question list before moving on
-                        //CheckDuplicateColumns(QuestionList, worksheet.Name.Substring(0, worksheet.Name.Length - 3));
 
                         // If there are no errors in the spreadsheet, create XML files and write to database
                         if (!errorsEncountered)
@@ -181,13 +179,18 @@ namespace generatexml
                             }
 
                             // Create the crfs table
-                            CreateCrfsTable();
-                            AddDataToTable(worksheet);
-                            // CopyMasterTables(); // This copies the villages table and census survey table - comment this code out 
+                            if (radioButtonBoth.Checked == true)
+                            {
+                                CreateCrfsTable();
+                                AddDataToTable(worksheet);
+                            }
                         }
                     }
                 }
-                CopyMasterTables(); // This copies the villages table and census survey table - comment this code out 
+                if (radioButtonBoth.Checked == true)
+                {
+                    CopyMasterTables(); // This copies the villages table and census survey table
+                }
 
                 // Show the appropriate Message Box
                 if (errorsEncountered)
@@ -238,7 +241,7 @@ namespace generatexml
         //////////////////////////////////////////////////////////////////////
         // Function to create the SQLite database
         //////////////////////////////////////////////////////////////////////
-        private void CreateMSAccessDatabase()
+        private void CreateSQLiteDatabase()
         {
             try
             {

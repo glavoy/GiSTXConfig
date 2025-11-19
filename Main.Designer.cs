@@ -28,23 +28,23 @@
         /// </summary>
         private void InitializeComponent()
         {
-            this.ButtonXML = new System.Windows.Forms.Button();
+            this.ButtonGenerate = new System.Windows.Forms.Button();
             this.labelVersion = new System.Windows.Forms.Label();
             this.radioButtonBoth = new System.Windows.Forms.RadioButton();
             this.radioButtonXMLOnly = new System.Windows.Forms.RadioButton();
             this.SuspendLayout();
             // 
-            // ButtonXML
+            // ButtonGenerate
             // 
-            this.ButtonXML.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.ButtonXML.Location = new System.Drawing.Point(371, 166);
-            this.ButtonXML.Margin = new System.Windows.Forms.Padding(4);
-            this.ButtonXML.Name = "ButtonXML";
-            this.ButtonXML.Size = new System.Drawing.Size(297, 98);
-            this.ButtonXML.TabIndex = 0;
-            this.ButtonXML.Text = "Generate XML file(s)\r\nand/or SQLite database";
-            this.ButtonXML.UseVisualStyleBackColor = true;
-            this.ButtonXML.Click += new System.EventHandler(this.ButtonXML_Click);
+            this.ButtonGenerate.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.ButtonGenerate.Location = new System.Drawing.Point(371, 166);
+            this.ButtonGenerate.Margin = new System.Windows.Forms.Padding(4);
+            this.ButtonGenerate.Name = "ButtonGenerate";
+            this.ButtonGenerate.Size = new System.Drawing.Size(297, 98);
+            this.ButtonGenerate.TabIndex = 0;
+            this.ButtonGenerate.Text = "Generate XML file(s)\r\nand/or SQLite database";
+            this.ButtonGenerate.UseVisualStyleBackColor = true;
+            this.ButtonGenerate.Click += new System.EventHandler(this.ButtonXML_Click);
             // 
             // labelVersion
             // 
@@ -87,7 +87,7 @@
             this.Controls.Add(this.radioButtonXMLOnly);
             this.Controls.Add(this.radioButtonBoth);
             this.Controls.Add(this.labelVersion);
-            this.Controls.Add(this.ButtonXML);
+            this.Controls.Add(this.ButtonGenerate);
             this.Margin = new System.Windows.Forms.Padding(4);
             this.Name = "Main";
             this.Text = "GiSTConfigX";
@@ -99,7 +99,7 @@
 
         #endregion
 
-        private System.Windows.Forms.Button ButtonXML;
+        private System.Windows.Forms.Button ButtonGenerate;
         private System.Windows.Forms.Label labelVersion;
         private System.Windows.Forms.RadioButton radioButtonBoth;
         private System.Windows.Forms.RadioButton radioButtonXMLOnly;
