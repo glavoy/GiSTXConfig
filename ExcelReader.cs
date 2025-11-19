@@ -143,7 +143,32 @@ namespace generatexml
 
                                 // Get Logic check
                                 curQuestion.logicCheck = range.Cells[rowCount, 9] != null && range.Cells[rowCount, 9].Value2 != null ? range.Cells[rowCount, 9].Value2.ToString() : "";
-                                if (curQuestion.logicCheck != "")
+                                if (curQuestion.logicCheck.Trim().StartsWith("unique;"))
+                                {
+                                    string[] parts = curQuestion.logicCheck.Split(new char[] { ';' }, 2);
+                                    if (parts.Length == 2)
+                                    {
+                                        string message = parts[1].Trim();
+                                        if (message.StartsWith("'") && message.EndsWith("'"))
+                                        {
+                                            curQuestion.uniqueCheckMessage = message.Trim('\'');
+                                            curQuestion.logicCheck = "";
+                                        }
+                                        else
+                                        {
+                                            errorsEncountered = true;
+                                            worksheetErrorsEncountered = true;
+                                            logstring.Add("ERROR - LogicCheck: FieldName '" + curQuestion.fieldName + "' in worksheet '" + worksheet.Name + "' has invalid syntax for unique check message (must be in single quotes): " + curQuestion.logicCheck);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        errorsEncountered = true;
+                                        worksheetErrorsEncountered = true;
+                                        logstring.Add("ERROR - LogicCheck: FieldName '" + curQuestion.fieldName + "' in worksheet '" + worksheet.Name + "' has invalid syntax for unique check (missing message): " + curQuestion.logicCheck);
+                                    }
+                                }
+                                else if (curQuestion.logicCheck != "")
                                 {
                                     CheckLogicCheckSyntax(worksheet.Name, curQuestion.logicCheck, curQuestion.fieldName);
                                 }
@@ -200,6 +225,7 @@ namespace generatexml
                     question.lowerRange = question.lowerRange.Trim();
                     question.upperRange = question.upperRange.Trim();
                     question.logicCheck = question.logicCheck.Trim();
+                    question.uniqueCheckMessage = question.uniqueCheckMessage.Trim();
                     question.dontKnow = question.dontKnow.Trim();
                     question.refuse = question.refuse.Trim();
                     question.na = question.na.Trim();

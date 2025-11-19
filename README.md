@@ -2,6 +2,10 @@
 
 A Windows Forms application for generating XML configuration files and SQLite databases from Excel-based data dictionaries. This tool is designed to streamline the creation of survey forms and data collection instruments by automating the generation of configuration files and database schemas.
 
+- compound logic checks
+- date range addition
+- added unique logic check
+
 ## Overview
 
 GiSTConfigX reads Excel workbooks containing structured data dictionaries and automatically generates:

@@ -59,6 +59,14 @@ namespace generatexml
                             outputFile.WriteLine(string.Concat("\t\t<maxCharacters>", question.maxCharacters, "</maxCharacters>"));
 
 
+                        if (!string.IsNullOrEmpty(question.uniqueCheckMessage))
+                        {
+                            outputFile.WriteLine("\t\t<unique_check>");
+                            outputFile.WriteLine(string.Concat("\t\t\t<message>", question.uniqueCheckMessage, "</message>"));
+                            outputFile.WriteLine("\t\t</unique_check>");
+                        }
+
+
                         // Upper and Lower range (numeric check)
                         if (question.questionType != "date" && question.lowerRange != "-9")
                         {

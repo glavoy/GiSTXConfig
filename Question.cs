@@ -11,6 +11,7 @@ namespace generatexml
         public string lowerRange;
         public string upperRange;
         public string logicCheck;
+        public string uniqueCheckMessage = "";
         public string dontKnow;
         public string refuse;
         public string na;
