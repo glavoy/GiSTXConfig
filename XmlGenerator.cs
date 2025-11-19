@@ -44,7 +44,9 @@ namespace generatexml
                     {
                         // Write the main part of the question
                         // Uses questionType, fieldName and fieldType
-                        outputFile.WriteLine(string.Concat("\t<question type = '", question.questionType, " fieldname = '", question.fieldName, " fieldtype = '", question.fieldType, "'>"));
+                                                outputFile.WriteLine(string.Concat("\t<question type = '", question.questionType,
+                                                                                   "' fieldname = '", question.fieldName,
+                                                                                   "' fieldtype = '", question.fieldType, "'>"));
 
 
                         // Write the text if it is not an automatic question

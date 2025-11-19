@@ -1,3 +1,4 @@
+using Newtonsoft.Json;
 using System;
 using System.IO;
 using System.Linq;
@@ -15,6 +16,8 @@ namespace generatexml
 {
     public partial class Main : Form
     {
+        private AppConfig config;
+
         // Initialize the form
         public Main()
         {
@@ -24,6 +27,9 @@ namespace generatexml
 
         private void Main_Load(object sender, EventArgs e)
         {
+            // Load configuration from JSON file
+            config = JsonConvert.DeserializeObject<AppConfig>(File.ReadAllText("config.json"));
+
             // Make sure the 'Both' radio button is checked
             radioButtonBoth.Checked = true;
 
@@ -43,33 +49,6 @@ namespace generatexml
         //     The following variables need to be set
         //**********************************************************************************************************************************************************************
         //**********************************************************************************************************************************************************************
-
-
-        //Test survey
-        //***************************
-        // Path to Excel file - this is the path to the Data Dictionary you want to use
-        readonly string excelFile = "C:\\GeoffOffline\\GiSTConfigX\\Excel\\survey.xlsx";
-
-        //***************************
-        // Path to XML file - this is where the generated xml files wil be written
-        readonly string xmlPath = "C:\\GeoffOffline\\GiSTX\\assets\\surveys\\";
-
-        //***************************
-        // Path to log file
-        readonly string logfilePath = "C:\\temp\\";
-
-        //***************************
-        // Path to database
-        //readonly string db_path = "C:\\PRISMCOMP\\MSAccessDatabase\\PRISMCOMP.mdb";
-        readonly string db_path = "C:\\gistx\\database\\fake_survey.sqlite";
-
-        //***************************
-        // Source database to copy tables
-        public string sourceDatabasePath = "C:\\gistx\\database\\gistx_config.sqlite";
-
-        //***************************
-        // name of the source tables to copy
-        public string[] sourceTableNames = {"config"};
 
 
         //log string
@@ -92,7 +71,7 @@ namespace generatexml
                 Cursor.Current = Cursors.WaitCursor;
 
                 // Start logging of any error
-                logstring.Add("Log file for: " + excelFile);
+                logstring.Add("Log file for: " + config.excelFile);
                 Primary_Keys.Clear();
 
                 // Open the Excel file
@@ -100,7 +79,7 @@ namespace generatexml
                 Excel.Workbook xlWorkBook;
                 Excel.Range range;
                 xlApp = new Excel.Application();
-                xlWorkBook = xlApp.Workbooks.Open(@excelFile, 0, true, 5, "", "", true,
+                xlWorkBook = xlApp.Workbooks.Open(@config.excelFile, 0, true, 5, "", "", true,
                                                   Microsoft.Office.Interop.Excel.XlPlatform.xlWindows,
                                                   "\t", false, false, 0, true, 1, 0);
 
@@ -109,7 +88,7 @@ namespace generatexml
                 // Create a blank database
                 if (radioButtonBoth.Checked == true)
                 {
-                    dbManager.CreateSQLiteDatabase(db_path);
+                    dbManager.CreateSQLiteDatabase(config.db_path);
                     logstring.AddRange(dbManager.logstring);
                 }
 
@@ -130,7 +109,7 @@ namespace generatexml
                         {
                             // Write to the XML file
                             XmlGenerator xmlGenerator = new XmlGenerator();
-                            xmlGenerator.WriteXML(worksheet.Name, QuestionList, xmlPath);
+                            xmlGenerator.WriteXML(worksheet.Name, QuestionList, config.xmlPath);
                             logstring.AddRange(xmlGenerator.logstring);
 
                             // Add table to database
@@ -138,7 +117,7 @@ namespace generatexml
                             {
                                 if (worksheet.Name.Substring(worksheet.Name.Length - 3) == "_dd")
                                 {
-                                    dbManager.CreateTableInDatabase(worksheet.Name, db_path, QuestionList);
+                                    dbManager.CreateTableInDatabase(worksheet.Name, config.db_path, QuestionList);
                                     logstring.AddRange(dbManager.logstring);
                                 }
                             }
@@ -164,8 +143,8 @@ namespace generatexml
                             // Create the crfs table
                             if (radioButtonBoth.Checked == true)
                             {
-                                dbManager.CreateCrfsTable(db_path);
-                                dbManager.AddDataToTable(worksheet, db_path);
+                                dbManager.CreateCrfsTable(config.db_path);
+                                dbManager.AddDataToTable(worksheet, config.db_path);
                                 logstring.AddRange(dbManager.logstring);
                             }
                         }
@@ -173,7 +152,7 @@ namespace generatexml
                 }
                 if (radioButtonBoth.Checked == true)
                 {
-                    dbManager.CopyMasterTables(sourceDatabasePath, db_path, sourceTableNames); // This copies the villages table and census survey table
+                    dbManager.CopyMasterTables(config.sourceDatabasePath, config.db_path, config.sourceTableNames); // This copies the villages table and census survey table
                     logstring.AddRange(dbManager.logstring);
                 }
 
@@ -224,7 +203,7 @@ namespace generatexml
             {
                 var logfilename = "gistlogfile";
                 // Open a log file and start writing lines of text to it
-                using (StreamWriter outputFile = new StreamWriter(string.Concat(logfilePath, logfilename, ".txt")))
+                using (StreamWriter outputFile = new StreamWriter(string.Concat(config.logfilePath, logfilename, ".txt")))
                 {
                     foreach (string line in logstring)
                         outputFile.WriteLine(line);
