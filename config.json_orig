@@ -1,0 +1,10 @@
+{
+  "excelFile": "C:\\GeoffOffline\\GiSTConfigX\\Excel\\survey.xlsx",
+  "xmlPath": "C:\\GeoffOffline\\GiSTX\\assets\\surveys\\",
+  "logfilePath": "C:\\temp\\",
+  "db_path": "C:\\gistx\\database\\household_survey.sqlite",
+  "sourceDatabasePath": "C:\\gistx\\database\\gistx_config.sqlite",
+  "sourceTableNames": [
+    "config", "geoff_temp"
+  ]
+}
