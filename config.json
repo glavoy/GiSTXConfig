@@ -2,12 +2,8 @@
   "excelFile": "C:\\GeoffOffline\\GiSTConfigX\\Excel\\prismcss.xlsx",
   "xmlPath": "C:\\temp\\",
   "logfilePath": "C:\\temp\\",
-  "surveyName": "PRISM CSS v2025-12-01 fake",
+  "surveyName": "PRISM CSS 2025-12-01",
   "surveyId": "prism_css_2025_12_01",
-  "databaseName": "prism_css_2025_12_01.sqlite",
-  "db_path": "C:\\temp\\prism_css_2025_12_01.sqlite",
-  "sourceDatabasePath": "C:\\gistx\\database\\gistx_config.sqlite",
-  "sourceTableNames": [
-    "config"
-  ]
+  "survey_manifest_path": "C:\\temp\\",
+  "databaseName": "prism_css_2025_12_01.sqlite"
 }

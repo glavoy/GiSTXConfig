@@ -108,8 +108,17 @@ namespace generatexml
                                     CheckMaxCharacters(worksheet.Name, curQuestion.maxCharacters, curQuestion.fieldName);
                                 }
 
-                                // Get the responses and then ensure that all questions and field types are correctly defined
-                                curQuestion.responses = range.Cells[rowCount, 6] != null && range.Cells[rowCount, 6].Value2 != null ? range.Cells[rowCount, 6].Value2.ToString() : "";
+                                // Get the responses string
+                                string rawResponses = range.Cells[rowCount, 6] != null && range.Cells[rowCount, 6].Value2 != null ? range.Cells[rowCount, 6].Value2.ToString() : "";
+
+                                if (rawResponses.Trim().StartsWith("source:", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    ParseDynamicResponses(rawResponses, curQuestion, worksheet.Name, curQuestion.fieldName);
+                                }
+                                else
+                                {
+                                    curQuestion.responses = rawResponses;
+                                }
                                 // Need to check for blank reponses, but sometimes they are supposed to be blank if they are dynamically generated
                                 //if (curQuestion.responses == "" && curQuestion.questionType == "radio")
                                 //{
@@ -118,7 +127,7 @@ namespace generatexml
                                 //    logstring.Add("ERROR - Responses: FieldName '" + curQuestion.fieldName + "' in worksheet '" + worksheet.Name + "' does not have any responses.");
                                 //}
 
-                                CheckQuestionFieldType(curQuestion.questionType, curQuestion.fieldType, curQuestion.fieldName, worksheet.Name, curQuestion.responses);
+                                CheckQuestionFieldType(curQuestion, worksheet.Name);
 
                                 // Get Lower range
                                 curQuestion.lowerRange = range.Cells[rowCount, 7] != null && range.Cells[rowCount, 7].Value2 != null ? range.Cells[rowCount, 7].Value2.ToString() : "-9";
@@ -216,20 +225,20 @@ namespace generatexml
                 // Trim and leading and trailing spaces
                 foreach (Question question in QuestionList)
                 {
-                    question.fieldName = question.fieldName.Trim();
-                    question.questionType = question.questionType.Trim();
-                    question.fieldType = question.fieldType.Trim();
-                    question.questionText = question.questionText.Trim();
-                    question.maxCharacters = question.maxCharacters.Trim();
-                    question.responses = question.responses.Trim();
-                    question.lowerRange = question.lowerRange.Trim();
-                    question.upperRange = question.upperRange.Trim();
-                    question.logicCheck = question.logicCheck.Trim();
-                    question.uniqueCheckMessage = question.uniqueCheckMessage.Trim();
-                    question.dontKnow = question.dontKnow.Trim();
-                    question.refuse = question.refuse.Trim();
-                    question.na = question.na.Trim();
-                    question.skip = question.skip.Trim();
+                    question.fieldName = question.fieldName?.Trim();
+                    question.questionType = question.questionType?.Trim();
+                    question.fieldType = question.fieldType?.Trim();
+                    question.questionText = question.questionText?.Trim();
+                    question.maxCharacters = question.maxCharacters?.Trim();
+                    question.responses = question.responses?.Trim();
+                    question.lowerRange = question.lowerRange?.Trim();
+                    question.upperRange = question.upperRange?.Trim();
+                    question.logicCheck = question.logicCheck?.Trim();
+                    question.uniqueCheckMessage = question.uniqueCheckMessage?.Trim();
+                    question.dontKnow = question.dontKnow?.Trim();
+                    question.refuse = question.refuse?.Trim();
+                    question.na = question.na?.Trim();
+                    question.skip = question.skip?.Trim();
                 }
 
                 if (worksheetErrorsEncountered == false)
@@ -334,8 +343,13 @@ namespace generatexml
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
         // Function to check any of the questions types, field types and corresponding datatypes are wrongly defined
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
-        private void CheckQuestionFieldType(string questiontype, string fieldtype, string fieldname, string tblename, string responseStr)
+        private void CheckQuestionFieldType(Question question, string tblename)
         {
+            string questiontype = question.questionType;
+            string fieldtype = question.fieldType;
+            string fieldname = question.fieldName;
+            string responseStr = question.responses;
+
             string[] qtype = { "radio", "combobox", "checkbox", "text", "date", "information", "automatic", "button" };
             string[] ftype = { "text", "datetime", "date", "phone_num", "integer", "text_integer", "text_decimal", "text_id", "n/a", "hourmin" };
 
@@ -392,8 +406,8 @@ namespace generatexml
                 }
             }
 
-            // check the duplicate responses for radio buttons and checkboxes
-            if (questiontype == "radio" | questiontype == "checkbox")
+            // check the duplicate responses for radio buttons and checkboxes, only for static responses
+            if ((questiontype == "radio" || questiontype == "checkbox") && question.ResponseSourceType == ResponseSourceType.Static && !string.IsNullOrEmpty(responseStr))
             {
                 //split the list of responses/answers to generate the list/array
                 string[] responses = responseStr.Split(new string[] { "\n", "\r\n" }, StringSplitOptions.RemoveEmptyEntries);
@@ -402,7 +416,7 @@ namespace generatexml
                 {
                     List<string> list = new List<string>();
                     foreach (string response in responses)
-                    {
+                    {}
                         // using the substring function to get the list of keys for responses
                         int index = response.IndexOf(@":");
 
@@ -411,7 +425,7 @@ namespace generatexml
                         {
                             errorsEncountered = true;
                             worksheetErrorsEncountered = true;
-                            logstring.Add("ERROR - Responses: Invalid radio button options for '" + fieldname + "' in table '" + tblename + "'");
+                            logstring.Add($"ERROR - Responses: Invalid static radio button options for '{fieldname}' in table '{tblename}'. Expected format 'number:Statement', found '{response}'.");
                             return;
                         }
 
@@ -421,7 +435,7 @@ namespace generatexml
                         {
                             errorsEncountered = true;
                             worksheetErrorsEncountered = true;
-                            logstring.Add("ERROR - Responses: Invalid radio button options for '" + fieldname + "' in table '" + tblename + "'");
+                            logstring.Add($"ERROR - Responses: Invalid static radio button options for '{fieldname}' in table '{tblename}'. Expected format 'number:Statement', found '{response}'.");
                             return;
                         }
                         else
@@ -444,7 +458,7 @@ namespace generatexml
                         {
                             errorsEncountered = true;
                             worksheetErrorsEncountered = true;
-                            logstring.Add("ERROR - Responses: Invalid radio button options for '" + fieldname + "' in table '" + tblename + "'. Please remove leading spaces");
+                            logstring.Add("ERROR - Responses: Invalid static radio button options for '" + fieldname + "' in table '" + tblename + "'. Please remove leading spaces.");
                             return;
                         }
                         // Check if there is a space after the colon
@@ -452,7 +466,7 @@ namespace generatexml
                         {
                             errorsEncountered = true;
                             worksheetErrorsEncountered = true;
-                            logstring.Add("ERROR - Responses: Invalid radio button options for '" + fieldname + "' in table '" + tblename + "'. Please remove space after the colon (:) ");
+                            logstring.Add("ERROR - Responses: Invalid static radio button options for '" + fieldname + "' in table '" + tblename + "'. Please remove space after the colon (:) for static responses.");
                             return;
                         }
                     }
@@ -989,5 +1003,124 @@ namespace generatexml
                 logstring.Add("Be sure to write code for each automatic variable: " + finalString);
             }
         }
+
+        private string ParseOperator(string op)
+        {
+            switch (op.Trim())
+            {
+                case "=": return "=";
+                case "!=": return "!=";
+                case "<>": return "<>";
+                case ">": return "&gt;";
+                case "<": return "&lt;";
+                case ">=": return "&gt;=";
+                case "<=": return "&lt;=";
+                default: return "="; // Default to equals
+            }
+        }
+
+        private void ParseDynamicResponses(string responsesStr, Question question, string worksheetName, string fieldName)
+        {
+            var lines = responsesStr.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+            foreach (var line in lines)
+            {
+                var trimmedLine = line.Trim();
+                if (string.IsNullOrEmpty(trimmedLine)) continue;
+
+                var parts = trimmedLine.Split(new[] { ':' }, 2);
+                if (parts.Length != 2)
+                {
+                    logstring.Add($"ERROR - Responses: Invalid dynamic response line format for FieldName '{fieldName}' in worksheet '{worksheetName}': '{trimmedLine}'");
+                    errorsEncountered = true;
+                    worksheetErrorsEncountered = true;
+                    continue;
+                }
+
+                var key = parts[0].Trim().ToLower();
+                var value = parts[1].Trim();
+
+                switch (key)
+                {
+                    case "source":
+                        if (Enum.TryParse(value, true, out ResponseSourceType sourceType))
+                        {
+                            question.ResponseSourceType = sourceType;
+                        }
+                        else
+                        {
+                            logstring.Add($"ERROR - Responses: Invalid source type '{value}' for FieldName '{fieldName}' in worksheet '{worksheetName}'. Must be 'csv' or 'database'.");
+                            errorsEncountered = true;
+                            worksheetErrorsEncountered = true;
+                        }
+                        break;
+                    case "file":
+                        question.ResponseSourceFile = value;
+                        break;
+                    case "table":
+                        question.ResponseSourceTable = value;
+                        break;
+                    case "filter":
+                        // Expected format: column operator value or column = value
+                        var filterMatch = Regex.Match(value, @"^(\w+)\s*(?:(=|!=|<>|>|<|>=|<=)\s*)?(.+)$");
+                        if (filterMatch.Success)
+                        {
+                            question.ResponseFilters.Add(new Filter
+                            {
+                                Column = filterMatch.Groups[1].Value.Trim(),
+                                Operator = ParseOperator(filterMatch.Groups[2].Success ? filterMatch.Groups[2].Value : "="),
+                                Value = filterMatch.Groups[3].Value.Trim()
+                            });
+                        }
+                        else
+                        {
+                            logstring.Add($"ERROR - Responses: Invalid filter format for FieldName '{fieldName}' in worksheet '{worksheetName}': '{value}'. Expected 'column [operator] value'.");
+                            errorsEncountered = true;
+                            worksheetErrorsEncountered = true;
+                        }
+                        break;
+                    case "display":
+                        question.ResponseDisplayColumn = value;
+                        break;
+                    case "value":
+                        question.ResponseValueColumn = value;
+                        break;
+                    case "distinct":
+                        if (bool.TryParse(value, out bool distinct))
+                        {
+                            question.ResponseDistinct = distinct;
+                        }
+                        else
+                        {
+                            logstring.Add($"ERROR - Responses: Invalid boolean value for 'distinct' for FieldName '{fieldName}' in worksheet '{worksheetName}'. Must be 'true' or 'false'.");
+                            errorsEncountered = true;
+                            worksheetErrorsEncountered = true;
+                        }
+                        break;
+                    case "empty_message":
+                        question.ResponseEmptyMessage = value;
+                        break;
+                    case "dont_know":
+                        var dkParts = value.Split(new[] { ',' }, 2);
+                        question.ResponseDontKnowValue = dkParts[0].Trim();
+                        if (dkParts.Length > 1)
+                        {
+                            question.ResponseDontKnowLabel = dkParts[1].Trim();
+                        }
+                        break;
+                    case "not_in_list":
+                        var nilParts = value.Split(new[] { ',' }, 2);
+                        question.ResponseNotInListValue = nilParts[0].Trim();
+                        if (nilParts.Length > 1)
+                        {
+                            question.ResponseNotInListLabel = nilParts[1].Trim();
+                        }
+                        break;
+                    default:
+                        logstring.Add($"WARNING - Responses: Unknown dynamic response key '{key}' for FieldName '{fieldName}' in worksheet '{worksheetName}'.");
+                        break;
+                }
+            }
+        }
+
     }
 }

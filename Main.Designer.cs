@@ -31,8 +31,6 @@
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Main));
             this.ButtonGenerate = new System.Windows.Forms.Button();
             this.labelVersion = new System.Windows.Forms.Label();
-            this.radioButtonBoth = new System.Windows.Forms.RadioButton();
-            this.radioButtonXMLOnly = new System.Windows.Forms.RadioButton();
             this.pictureBoxGisTX = new System.Windows.Forms.PictureBox();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBoxGisTX)).BeginInit();
             this.SuspendLayout();
@@ -45,7 +43,7 @@
             this.ButtonGenerate.Name = "ButtonGenerate";
             this.ButtonGenerate.Size = new System.Drawing.Size(297, 98);
             this.ButtonGenerate.TabIndex = 0;
-            this.ButtonGenerate.Text = "Generate XML file(s)\r\nand/or SQLite database";
+            this.ButtonGenerate.Text = "Generate Manifest and XML file(s)";
             this.ButtonGenerate.UseVisualStyleBackColor = true;
             this.ButtonGenerate.Click += new System.EventHandler(this.ButtonXML_Click);
             // 
@@ -59,28 +57,6 @@
             this.labelVersion.Size = new System.Drawing.Size(64, 17);
             this.labelVersion.TabIndex = 1;
             this.labelVersion.Text = "Version: ";
-            // 
-            // radioButtonBoth
-            // 
-            this.radioButtonBoth.AutoSize = true;
-            this.radioButtonBoth.Location = new System.Drawing.Point(395, 288);
-            this.radioButtonBoth.Margin = new System.Windows.Forms.Padding(4);
-            this.radioButtonBoth.Name = "radioButtonBoth";
-            this.radioButtonBoth.Size = new System.Drawing.Size(200, 20);
-            this.radioButtonBoth.TabIndex = 3;
-            this.radioButtonBoth.Text = "Both Database and XML files";
-            this.radioButtonBoth.UseVisualStyleBackColor = true;
-            // 
-            // radioButtonXMLOnly
-            // 
-            this.radioButtonXMLOnly.AutoSize = true;
-            this.radioButtonXMLOnly.Location = new System.Drawing.Point(395, 316);
-            this.radioButtonXMLOnly.Margin = new System.Windows.Forms.Padding(4);
-            this.radioButtonXMLOnly.Name = "radioButtonXMLOnly";
-            this.radioButtonXMLOnly.Size = new System.Drawing.Size(109, 20);
-            this.radioButtonXMLOnly.TabIndex = 4;
-            this.radioButtonXMLOnly.Text = "XML files only";
-            this.radioButtonXMLOnly.UseVisualStyleBackColor = true;
             // 
             // pictureBoxGisTX
             // 
@@ -99,8 +75,6 @@
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1067, 554);
             this.Controls.Add(this.pictureBoxGisTX);
-            this.Controls.Add(this.radioButtonXMLOnly);
-            this.Controls.Add(this.radioButtonBoth);
             this.Controls.Add(this.labelVersion);
             this.Controls.Add(this.ButtonGenerate);
             this.Margin = new System.Windows.Forms.Padding(4);
@@ -117,8 +91,6 @@
 
         private System.Windows.Forms.Button ButtonGenerate;
         private System.Windows.Forms.Label labelVersion;
-        private System.Windows.Forms.RadioButton radioButtonBoth;
-        private System.Windows.Forms.RadioButton radioButtonXMLOnly;
         private System.Windows.Forms.PictureBox pictureBoxGisTX;
     }
 }

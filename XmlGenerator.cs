@@ -96,20 +96,77 @@ namespace generatexml
                         // Write responses if it is a radio or checkbox type question
                         if (question.questionType == "radio" || question.questionType == "checkbox" || question.questionType == "combobox")
                         {
-                            outputFile.WriteLine("\t\t<responses>");
-                            string[] responses = question.responses.Split(new string[] { "\n", "\r\n" }, StringSplitOptions.RemoveEmptyEntries);
+                            outputFile.Write("\t\t<responses");
 
-                            if (responses.Length == 0)
+                            if (question.ResponseSourceType == ResponseSourceType.Csv)
                             {
-                                outputFile.WriteLine("\t\t\t<response></response>");
+                                outputFile.Write($" source='csv' file='{question.ResponseSourceFile}'");
                             }
-                            else
+                            else if (question.ResponseSourceType == ResponseSourceType.Database)
                             {
-                                foreach (string response in responses)
+                                outputFile.Write($" source='database' table='{question.ResponseSourceTable}'");
+                            }
+                            outputFile.WriteLine(">");
+
+                            // Filters
+                            foreach (var filter in question.ResponseFilters)
+                            {
+                                outputFile.WriteLine($"\t\t\t<filter column='{filter.Column}' operator='{filter.Operator}' value='{filter.Value}'/>");
+                            }
+
+                            // Display and Value
+                            if (!string.IsNullOrEmpty(question.ResponseDisplayColumn))
+                            {
+                                outputFile.WriteLine($"\t\t\t<display column='{question.ResponseDisplayColumn}'/>");
+                            }
+                            if (!string.IsNullOrEmpty(question.ResponseValueColumn))
+                            {
+                                outputFile.WriteLine($"\t\t\t<value column='{question.ResponseValueColumn}'/>");
+                            }
+
+                            // Distinct
+                            if (question.ResponseDistinct.HasValue)
+                            {
+                                outputFile.WriteLine($"\t\t\t<distinct>{question.ResponseDistinct.Value.ToString().ToLower()}</distinct>");
+                            }
+
+                            // Empty Message
+                            if (!string.IsNullOrEmpty(question.ResponseEmptyMessage))
+                            {
+                                outputFile.WriteLine($"\t\t\t<empty_message>{question.ResponseEmptyMessage}</empty_message>");
+                            }
+
+                            // Don't Know
+                            if (!string.IsNullOrEmpty(question.ResponseDontKnowValue))
+                            {
+                                string labelAttr = string.IsNullOrEmpty(question.ResponseDontKnowLabel) ? "" : $" label='{question.ResponseDontKnowLabel}'";
+                                outputFile.WriteLine($"\t\t\t<dont_know value='{question.ResponseDontKnowValue}'{labelAttr}/>");
+                            }
+
+                            // Not In List
+                            if (!string.IsNullOrEmpty(question.ResponseNotInListValue))
+                            {
+                                string labelAttr = string.IsNullOrEmpty(question.ResponseNotInListLabel) ? "" : $" label='{question.ResponseNotInListLabel}'";
+                                outputFile.WriteLine($"\t\t\t<not_in_list value='{question.ResponseNotInListValue}'{labelAttr}/>");
+                            }
+
+
+                            if (question.ResponseSourceType == ResponseSourceType.Static)
+                            {
+                                string[] responses = question.responses.Split(new string[] { "\n", "\r\n" }, StringSplitOptions.RemoveEmptyEntries);
+
+                                if (responses.Length == 0)
                                 {
-                                    int index = response.IndexOf(@":");
-                                    outputFile.WriteLine(string.Concat("\t\t\t<response value = '", response.Substring(0, index), "'>",
-                                                                        response.Substring(index + 1).Trim(), "</response>"));
+                                    outputFile.WriteLine("\t\t\t<response></response>");
+                                }
+                                else
+                                {
+                                    foreach (string response in responses)
+                                    {
+                                        int index = response.IndexOf(@":");
+                                        outputFile.WriteLine(string.Concat("\t\t\t<response value = '", response.Substring(0, index), "'>",
+                                                                            response.Substring(index + 1).Trim(), "</response>"));
+                                    }
                                 }
                             }
 

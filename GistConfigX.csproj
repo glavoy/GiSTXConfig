@@ -70,8 +70,10 @@
     <Compile Include="Question.cs" />
     <Compile Include="ExcelReader.cs" />
     <Compile Include="XmlGenerator.cs" />
-    <Compile Include="DatabaseManager.cs" />
+    
     <Compile Include="AppConfig.cs" />
+    <Compile Include="JsonGenerator.cs" />
+    <Compile Include="CrfReader.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <EmbeddedResource Include="Main.resx">
       <DependentUpon>Main.cs</DependentUpon>

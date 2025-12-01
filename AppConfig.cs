@@ -5,8 +5,9 @@ namespace generatexml
         public string excelFile { get; set; }
         public string xmlPath { get; set; }
         public string logfilePath { get; set; }
-        public string db_path { get; set; }
-        public string sourceDatabasePath { get; set; }
-        public string[] sourceTableNames { get; set; }
+        public string survey_manifest_path { get; set; }
+        public string surveyName { get; set; }
+        public string surveyId { get; set; }
+        public string databaseName { get; set; }
     }
 }

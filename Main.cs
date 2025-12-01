@@ -6,8 +6,7 @@ using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using Excel = Microsoft.Office.Interop.Excel;
 using Microsoft.Office.Interop.Excel;
-
-
+using GistConfigX;
 
 namespace generatexml
 {
@@ -29,8 +28,7 @@ namespace generatexml
             // Load configuration from JSON file
             config = JsonConvert.DeserializeObject<AppConfig>(File.ReadAllText("config.json"));
 
-            // Make sure the 'Both' radio button is checked
-            radioButtonBoth.Checked = true;
+
 
             // Show version
             labelVersion.Text = string.Concat("Version: ", swVer);
@@ -74,20 +72,10 @@ namespace generatexml
                 // Open the Excel file
                 Excel.Application xlApp;
                 Excel.Workbook xlWorkBook;
-                Excel.Range range;
                 xlApp = new Excel.Application();
                 xlWorkBook = xlApp.Workbooks.Open(@config.excelFile, 0, true, 5, "", "", true,
                                                   Microsoft.Office.Interop.Excel.XlPlatform.xlWindows,
                                                   "\t", false, false, 0, true, 1, 0);
-
-                DatabaseManager dbManager = new DatabaseManager();
-
-                // Create a blank database
-                if (radioButtonBoth.Checked == true)
-                {
-                    dbManager.CreateSQLiteDatabase(config.db_path);
-                    logstring.AddRange(dbManager.logstring);
-                }
 
                 // Read each sheet of the Excel file and generate list of questions
                 foreach (Worksheet worksheet in xlWorkBook.Worksheets)
@@ -107,10 +95,12 @@ namespace generatexml
 
                 if (!errorsEncountered)
                 {
+                    List<string> xmlFiles = new List<string>();
                     foreach (Worksheet worksheet in xlWorkBook.Worksheets)
                     {
                         if (worksheet.Name.Substring(worksheet.Name.Length - 3) == "_dd" || worksheet.Name.Substring(worksheet.Name.Length - 4) == "_xml")
                         {
+                            xmlFiles.Add(worksheet.Name.Replace("_dd", ".xml").Replace("_xml", ".xml"));
                             ExcelReader excelReader = new ExcelReader();
                             excelReader.CreateQuestionList(worksheet);
                             QuestionList = excelReader.QuestionList;
@@ -118,59 +108,41 @@ namespace generatexml
                             XmlGenerator xmlGenerator = new XmlGenerator();
                             xmlGenerator.WriteXML(worksheet.Name, QuestionList, config.xmlPath);
                             logstring.AddRange(xmlGenerator.logstring);
-
-                            // Add table to database
-                            if (radioButtonBoth.Checked == true)
-                            {
-                                if (worksheet.Name.Substring(worksheet.Name.Length - 3) == "_dd")
-                                {
-                                    dbManager.CreateTableInDatabase(worksheet.Name, config.db_path, QuestionList);
-                                    logstring.AddRange(dbManager.logstring);
-                                }
-                            }
                         }
                         // Get the primary keys for the tables
                         else
                         {
                             if (worksheet.Name == "crfs")
                             {
-                                // Get the range of used cells in the Excel file
-                                range = worksheet.UsedRange;
+                                CrfReader crfReader = new CrfReader();
+                                List<Crf> crfs = crfReader.ReadCrfsWorksheet(worksheet);
 
-                                // Variable to get the total number of rows used in the Excel file
-                                int numRows = range.Rows.Count;
-
-                                // Add the Primary Keys to the dictionary
-                                for (int rowCount = 2; rowCount <= numRows; rowCount++)
+                                SurveyManifest manifest = new SurveyManifest
                                 {
-                                    Primary_Keys.Add(range.Cells[rowCount, 1].Value2.ToString(), range.Cells[rowCount, 2].Value2.ToString());
-                                }
+                                    surveyName = config.surveyName,
+                                    surveyId = config.surveyId,
+                                    databaseName = config.databaseName,
+                                    xmlFiles = xmlFiles,
+                                    crfs = crfs
+                                };
 
-                                // Create the crfs table
-                                if (radioButtonBoth.Checked == true)
-                                {
-                                    dbManager.CreateCrfsTable(config.db_path);
-                                    dbManager.AddDataToTable(worksheet, config.db_path);
-                                    logstring.AddRange(dbManager.logstring);
-                                }
+                                JsonGenerator jsonGenerator = new JsonGenerator();
+                                string outputPath = Path.Combine(config.survey_manifest_path, "survey_manifest.gistx");
+                                jsonGenerator.Generate(outputPath, manifest);
+                                logstring.Add("Successfully generated survey_manifest.gistx");
                             }
                         }
                     }
-                }
-                if (radioButtonBoth.Checked == true && !string.IsNullOrEmpty(config.sourceDatabasePath))
-                {
-                    dbManager.CopyMasterTables(config.sourceDatabasePath, config.db_path, config.sourceTableNames); // This copies the villages table and census survey table
-                    logstring.AddRange(dbManager.logstring);
                 }
 
                 // Show the appropriate Message Box
                 if (errorsEncountered)
                 {
-                    MessageBox.Show("The Data Dictionary contains errors! \r\rThe XML files and database HAVE NOT not been created! \r\rPlease refer to the log file and rectify all errors.");
+                    MessageBox.Show("The Data Dictionary contains errors! \r\rThe XML files and manifest HAVE NOT not been created! \r\rPlease refer to the log file and rectify all errors.");
                 }
                 else
                 {
-                    MessageBox.Show("Done Building the xml file(s) and the database and no errors were found. Please refer to the log file.");
+                    MessageBox.Show("Done Building the xml file(s) and the manifest and no errors were found. Please refer to the log file.");
                 }
 
 
