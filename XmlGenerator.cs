@@ -258,7 +258,7 @@ namespace generatexml
             // Error handling in caase we could not create the XML file
             catch (Exception ex)
             {
-                MessageBox.Show("ERROR - Writing to XML file: Could not create XML file " + xmlfilename + " Ensure path is correct." + ex.Message);
+                MessageBox.Show("ERROR - Writing to XML file: Could not create XML file " + xmlfilename + " Ensure path is correct." + ex.Message, "ERROR", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 logstring.Add("ERROR - Writing to XML file: Could not create XML file " + xmlfilename + " Ensure path is correct." + ex.Message);
             }
         }

@@ -42,6 +42,8 @@
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.IO.Compression.FileSystem" />
     <Reference Include="System.Data.SQLite, Version=1.0.119.0, Culture=neutral, PublicKeyToken=db937bc2d44ff139, processorArchitecture=MSIL">
       <HintPath>packages\Stub.System.Data.SQLite.Core.NetFramework.1.0.119.0\lib\net46\System.Data.SQLite.dll</HintPath>
     </Reference>
@@ -70,7 +72,6 @@
     <Compile Include="Question.cs" />
     <Compile Include="ExcelReader.cs" />
     <Compile Include="XmlGenerator.cs" />
-    
     <Compile Include="AppConfig.cs" />
     <Compile Include="JsonGenerator.cs" />
     <Compile Include="CrfReader.cs" />
@@ -99,6 +100,7 @@
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
     </Compile>
     <None Include="README.md" />
+    <None Include="ToDo.md" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="config.json">

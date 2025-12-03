@@ -43,7 +43,7 @@
             this.ButtonGenerate.Name = "ButtonGenerate";
             this.ButtonGenerate.Size = new System.Drawing.Size(297, 98);
             this.ButtonGenerate.TabIndex = 0;
-            this.ButtonGenerate.Text = "Generate Manifest and XML file(s)";
+            this.ButtonGenerate.Text = "Generate Survey Package";
             this.ButtonGenerate.UseVisualStyleBackColor = true;
             this.ButtonGenerate.Click += new System.EventHandler(this.ButtonXML_Click);
             // 

@@ -249,12 +249,6 @@ namespace generatexml
                     CheckSkipToFieldNames(worksheet.Name);
                     // Check if missing MaxCharacters for text fields
                     CheckMaxCharacters(worksheet.Name);
-                    // Add automatic variables
-
-                    if (worksheetErrorsEncountered == false)
-                    {
-                        ListAutomaticVariables();
-                    }
                     // Check for duplicate columns in the question list before moving on
                     CheckDuplicateColumns(worksheet.Name);
                     if (worksheetErrorsEncountered == false)
@@ -268,7 +262,7 @@ namespace generatexml
             {
                 errorsEncountered = true;
                 worksheetErrorsEncountered = true;
-                MessageBox.Show("ERROR: There were unexpected errors in the Excel Data Dictionary: " + "Worksheet: " + worksheet.Name + " Error: " + ex.Message);
+                MessageBox.Show("ERROR: There were unexpected errors in the Excel Data Dictionary: " + "Worksheet: " + worksheet.Name + " Error: " + ex.Message, "ERROR", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 logstring.Add("ERROR: There were unexpected errors in the Excel Data Dictionary: " + "Worksheet: " + worksheet.Name + " Error: " + ex.Message);
             }
         }
@@ -416,7 +410,7 @@ namespace generatexml
                 {
                     List<string> list = new List<string>();
                     foreach (string response in responses)
-                    {}
+                    {
                         // using the substring function to get the list of keys for responses
                         int index = response.IndexOf(@":");
 
@@ -473,6 +467,7 @@ namespace generatexml
                 }
             }
         }
+
 
 
 
@@ -582,7 +577,7 @@ namespace generatexml
             {
                 errorsEncountered = true;
                 worksheetErrorsEncountered = true;
-                MessageBox.Show("ERROR - LogicCheck: FieldName '" + fieldname + "' in worksheet '" + worksheet + "' has invalid syntax for LogicCheck." + ex.Message);
+                MessageBox.Show("ERROR - LogicCheck: FieldName '" + fieldname + "' in worksheet '" + worksheet + "' has invalid syntax for LogicCheck." + ex.Message, "ERROR", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 logstring.Add("ERROR - LogicCheck: FieldName '" + fieldname + "' in worksheet '" + worksheet + "' has invalid syntax for LogicCheck." + ex.Message);
             }
         }
@@ -729,7 +724,7 @@ namespace generatexml
             {
                 errorsEncountered = true;
                 worksheetErrorsEncountered = true;
-                MessageBox.Show("ERROR - Skip: FieldName '" + fieldname + "' in worksheet '" + worksheet + "' has invalid syntax for Skip." + ex.Message);
+                MessageBox.Show("ERROR - Skip: FieldName '" + fieldname + "' in worksheet '" + worksheet + "' has invalid syntax for Skip." + ex.Message, "ERROR", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 logstring.Add("ERROR - Skip: FieldName '" + fieldname + "' in worksheet '" + worksheet + "' has invalid syntax for Skip." + ex.Message);
             }
         }
@@ -812,7 +807,7 @@ namespace generatexml
             {
                 errorsEncountered = true;
                 worksheetErrorsEncountered = true;
-                MessageBox.Show("ERROR - LogicCheck: FieldName '" + curFieldname + "' in worksheet '" + worksheet + "' has invalid syntax for LogicCheck." + ex.Message);
+                MessageBox.Show("ERROR - LogicCheck: FieldName '" + curFieldname + "' in worksheet '" + worksheet + "' has invalid syntax for LogicCheck." + ex.Message, "ERROR", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 logstring.Add("ERROR - LogicCheck: FieldName '" + curFieldname + "' in worksheet '" + worksheet + "' has invalid syntax for LogicCheck." + ex.Message);
             }
         }
@@ -905,7 +900,7 @@ namespace generatexml
             {
                 errorsEncountered = true;
                 worksheetErrorsEncountered = true;
-                MessageBox.Show("ERROR - Skip: FieldName '" + curFieldname + "' in worksheet '" + worksheet + "' has invalid syntax for Skip." + ex.Message);
+                MessageBox.Show("ERROR - Skip: FieldName '" + curFieldname + "' in worksheet '" + worksheet + "' has invalid syntax for Skip." + ex.Message, "ERROR", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 logstring.Add("ERROR - Skip: FieldName '" + curFieldname + "' in worksheet '" + worksheet + "' has invalid syntax for Skip." + ex.Message);
             }
         }
@@ -939,7 +934,7 @@ namespace generatexml
             {
                 errorsEncountered = true;
                 worksheetErrorsEncountered = true;
-                MessageBox.Show("ERROR - Skip: FieldName '" + curFieldname + "' in worksheet '" + worksheet + "' has invalid syntax for Skip." + ex.Message);
+                MessageBox.Show("ERROR - Skip: FieldName '" + curFieldname + "' in worksheet '" + worksheet + "' has invalid syntax for Skip." + ex.Message, "ERROR", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 logstring.Add("ERROR - Skip: FieldName '" + curFieldname + "' in worksheet '" + worksheet + "' has invalid syntax for Skip." + ex.Message);
             }
         }
@@ -971,38 +966,6 @@ namespace generatexml
             }
         }
 
-
-        //////////////////////////////////////////////////////////////////////
-        // Function to create a list of automatic variables
-        //////////////////////////////////////////////////////////////////////
-        private void ListAutomaticVariables()
-        {
-            List<string> list = new List<string>();
-            foreach (Question question in QuestionList)
-            {
-                if (question.questionType == "automatic")
-                {
-                    list.Add(question.fieldName);
-                }
-            }
-
-            if (list.Count > 0)
-            {
-                StringBuilder sb = new StringBuilder();
-                foreach (string item in list)
-                {
-                    sb.Append(item);
-                    sb.Append(", ");
-                }
-
-                // Remove the last comma from the string
-                sb.Remove(sb.Length - 2, 2);
-
-                // Use the final string
-                string finalString = sb.ToString();
-                logstring.Add("Be sure to write code for each automatic variable: " + finalString);
-            }
-        }
 
         private string ParseOperator(string op)
         {

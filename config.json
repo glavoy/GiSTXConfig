@@ -1,9 +1,7 @@
 {
-  "excelFile": "C:\\GeoffOffline\\GiSTConfigX\\Excel\\prismcss.xlsx",
-  "xmlPath": "C:\\temp\\",
-  "logfilePath": "C:\\temp\\",
-  "surveyName": "PRISM CSS 2025-12-01",
-  "surveyId": "prism_css_2025_12_01",
-  "survey_manifest_path": "C:\\temp\\",
-  "databaseName": "prism_css_2025_12_01.sqlite"
+  "excelFile": "C:\\Users\\glavoy\\Dropbox\\IDRC\\PRISM3\\LLINEUP3\\PRISM_Comprehensive_CSS_Data_Dictionary_2025_12_03_gistx - short.xlsx",
+  "csvFiles": "C:\\Users\\glavoy\\Dropbox\\IDRC\\PRISM3\\LLINEUP3\\csv",
+  "outputPath": "C:\\temp\\",
+  "surveyName": "PRISM CSS 2025-12-03 - short",
+  "surveyId": "prism_css_2025_12_03_short"
 }
