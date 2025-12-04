@@ -1,7 +1,6 @@
 ## To Do
 
-- [ ] create one zip file with all files
-- [ ] remove database file name from config.json - we will use the surveyId.sqlite
+- [ ] add database file name back to from config.json - for minor changes, we can use the same database - i.e. adding a new field.
 - [ ] add 'pathToCSVfiles' in config.json - as an optional parameter
 ```
 {

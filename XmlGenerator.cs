@@ -53,6 +53,11 @@ namespace generatexml
                         if (question.questionType != "automatic")
                             outputFile.WriteLine(string.Concat("\t\t<text>", question.questionText, "</text>"));
 
+                        // Generate calculation XML for automatic questions with custom calculations
+                        if (question.questionType == "automatic" && question.CalculationType != CalculationType.None)
+                        {
+                            GenerateCalculationXml(outputFile, question);
+                        }
 
                         // The maximum characters if necessary
                         if (question.maxCharacters != "-9")
@@ -386,6 +391,176 @@ namespace generatexml
             }
 
             return result.ToString();
+        }
+
+
+        //////////////////////////////////////////////////////////////////////
+        // Function to generate the XML for automatic calculations
+        //////////////////////////////////////////////////////////////////////
+        private void GenerateCalculationXml(StreamWriter outputFile, Question question)
+        {
+            switch (question.CalculationType)
+            {
+                case CalculationType.Query:
+                    GenerateQueryCalculation(outputFile, question);
+                    break;
+
+                case CalculationType.Case:
+                    GenerateCaseCalculation(outputFile, question);
+                    break;
+
+                case CalculationType.Constant:
+                    outputFile.WriteLine($"\t\t<calculation type='constant' value='{question.CalculationConstantValue}' />");
+                    break;
+
+                case CalculationType.Lookup:
+                    outputFile.WriteLine($"\t\t<calculation type='lookup' field='{question.CalculationLookupField}' />");
+                    break;
+
+                case CalculationType.Math:
+                    GenerateMathCalculation(outputFile, question);
+                    break;
+
+                case CalculationType.Concat:
+                    GenerateConcatCalculation(outputFile, question);
+                    break;
+            }
+        }
+
+        private void GenerateQueryCalculation(StreamWriter outputFile, Question question)
+        {
+            outputFile.WriteLine("\t\t<calculation type='query'>");
+            outputFile.WriteLine($"\t\t\t<sql>{question.CalculationQuerySql}</sql>");
+
+            foreach (var param in question.CalculationQueryParameters)
+            {
+                // Keep the @ prefix in the parameter name
+                outputFile.WriteLine($"\t\t\t<parameter name='{param.Name}' field='{param.FieldName}' />");
+            }
+
+            outputFile.WriteLine("\t\t</calculation>");
+        }
+
+        private void GenerateCaseCalculation(StreamWriter outputFile, Question question)
+        {
+            outputFile.WriteLine("\t\t<calculation type='case'>");
+
+            foreach (var condition in question.CalculationCaseConditions)
+            {
+                // Convert operators to XML entities
+                string xmlOperator = ConvertOperatorToXml(condition.Operator);
+
+                outputFile.WriteLine($"\t\t\t<when field='{condition.Field}' operator='{xmlOperator}' value='{condition.Value}'>");
+
+                // Generate result (typically a constant)
+                if (condition.Result != null)
+                {
+                    GenerateCalculationPart(outputFile, condition.Result, 4);
+                }
+
+                outputFile.WriteLine("\t\t\t</when>");
+            }
+
+            // Generate else clause if present
+            if (question.CalculationCaseElse != null)
+            {
+                outputFile.WriteLine("\t\t\t<else>");
+                GenerateCalculationPart(outputFile, question.CalculationCaseElse, 4);
+                outputFile.WriteLine("\t\t\t</else>");
+            }
+
+            outputFile.WriteLine("\t\t</calculation>");
+        }
+
+        private void GenerateMathCalculation(StreamWriter outputFile, Question question)
+        {
+            outputFile.WriteLine($"\t\t<calculation type='math' operator='{question.CalculationMathOperator}'>");
+
+            foreach (var part in question.CalculationMathParts)
+            {
+                GenerateCalculationPart(outputFile, part, 3);
+            }
+
+            outputFile.WriteLine("\t\t</calculation>");
+        }
+
+        private void GenerateConcatCalculation(StreamWriter outputFile, Question question)
+        {
+            string separatorAttr = string.IsNullOrEmpty(question.CalculationConcatSeparator)
+                ? ""
+                : $" separator='{question.CalculationConcatSeparator}'";
+
+            outputFile.WriteLine($"\t\t<calculation type='concat'{separatorAttr}>");
+
+            foreach (var part in question.CalculationConcatParts)
+            {
+                GenerateCalculationPart(outputFile, part, 3);
+            }
+
+            outputFile.WriteLine("\t\t</calculation>");
+        }
+
+        private void GenerateCalculationPart(StreamWriter outputFile, CalculationPart part, int indentLevel)
+        {
+            string indent = new string('\t', indentLevel);
+
+            switch (part.Type)
+            {
+                case CalculationType.Constant:
+                    outputFile.WriteLine($"{indent}<result type='constant' value='{part.ConstantValue}' />");
+                    break;
+
+                case CalculationType.Lookup:
+                    outputFile.WriteLine($"{indent}<part type='lookup' field='{part.LookupField}' />");
+                    break;
+
+                case CalculationType.Query:
+                    outputFile.WriteLine($"{indent}<part type='query'>");
+                    outputFile.WriteLine($"{indent}\t<sql>{part.QuerySql}</sql>");
+                    foreach (var param in part.QueryParameters)
+                    {
+                        // Keep the @ prefix in the parameter name
+                        outputFile.WriteLine($"{indent}\t<parameter name='{param.Name}' field='{param.FieldName}' />");
+                    }
+                    outputFile.WriteLine($"{indent}</part>");
+                    break;
+
+                case CalculationType.Math:
+                    outputFile.WriteLine($"{indent}<part type='math' operator='{part.MathOperator}'>");
+                    foreach (var nestedPart in part.Parts)
+                    {
+                        GenerateCalculationPart(outputFile, nestedPart, indentLevel + 1);
+                    }
+                    outputFile.WriteLine($"{indent}</part>");
+                    break;
+
+                case CalculationType.Concat:
+                    string separatorAttr = string.IsNullOrEmpty(part.ConcatSeparator)
+                        ? ""
+                        : $" separator='{part.ConcatSeparator}'";
+                    outputFile.WriteLine($"{indent}<part type='concat'{separatorAttr}>");
+                    foreach (var nestedPart in part.Parts)
+                    {
+                        GenerateCalculationPart(outputFile, nestedPart, indentLevel + 1);
+                    }
+                    outputFile.WriteLine($"{indent}</part>");
+                    break;
+            }
+        }
+
+        private string ConvertOperatorToXml(string op)
+        {
+            switch (op.Trim())
+            {
+                case "=": return "=";
+                case "!=": return "!=";
+                case "<>": return "&lt;&gt;";
+                case ">": return "&gt;";
+                case "<": return "&lt;";
+                case ">=": return "&gt;=";
+                case "<=": return "&lt;=";
+                default: return "=";
+            }
         }
     }
 }

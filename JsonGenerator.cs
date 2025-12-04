@@ -46,6 +46,8 @@ namespace GistConfigX
         public int? repeat_enforce_count { get; set; }
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public string display_fields { get; set; }
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public string entry_condition { get; set; }
     }
 
     public class IdConfig

@@ -9,11 +9,58 @@ namespace generatexml
         Database
     }
 
+    public enum CalculationType
+    {
+        None,
+        Query,
+        Case,
+        Constant,
+        Lookup,
+        Math,
+        Concat
+    }
+
     public class Filter
     {
         public string Column { get; set; }
         public string Value { get; set; }
         public string Operator { get; set; } = "="; // Default operator
+    }
+
+    public class CalculationParameter
+    {
+        public string Name { get; set; }        // "@hhid"
+        public string FieldName { get; set; }   // "hhid"
+    }
+
+    public class CaseCondition
+    {
+        public string Field { get; set; }
+        public string Operator { get; set; }
+        public string Value { get; set; }
+        public CalculationPart Result { get; set; }
+    }
+
+    public class CalculationPart
+    {
+        public CalculationType Type { get; set; }
+
+        // For constant parts
+        public string ConstantValue { get; set; }
+
+        // For lookup parts
+        public string LookupField { get; set; }
+
+        // For query parts
+        public string QuerySql { get; set; }
+        public List<CalculationParameter> QueryParameters { get; set; } = new List<CalculationParameter>();
+
+        // For math parts (nested)
+        public string MathOperator { get; set; }
+        public List<CalculationPart> Parts { get; set; } = new List<CalculationPart>();
+
+        // For concat parts (nested)
+        public string ConcatSeparator { get; set; }
     }
 
     public class Question
@@ -40,6 +87,31 @@ namespace generatexml
         public string ResponseDontKnowLabel { get; set; }
         public string ResponseNotInListValue { get; set; }
         public string ResponseNotInListLabel { get; set; }
+
+        // Automatic calculation fields
+        public CalculationType CalculationType { get; set; } = CalculationType.None;
+
+        // For query calculations
+        public string CalculationQuerySql { get; set; }
+        public List<CalculationParameter> CalculationQueryParameters { get; set; } = new List<CalculationParameter>();
+
+        // For case calculations
+        public List<CaseCondition> CalculationCaseConditions { get; set; } = new List<CaseCondition>();
+        public CalculationPart CalculationCaseElse { get; set; }
+
+        // For constant calculations
+        public string CalculationConstantValue { get; set; }
+
+        // For lookup calculations
+        public string CalculationLookupField { get; set; }
+
+        // For math calculations
+        public string CalculationMathOperator { get; set; }
+        public List<CalculationPart> CalculationMathParts { get; set; } = new List<CalculationPart>();
+
+        // For concat calculations
+        public string CalculationConcatSeparator { get; set; }
+        public List<CalculationPart> CalculationConcatParts { get; set; } = new List<CalculationPart>();
 
 
         public string lowerRange;

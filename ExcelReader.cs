@@ -115,6 +115,25 @@ namespace generatexml
                                 {
                                     ParseDynamicResponses(rawResponses, curQuestion, worksheet.Name, curQuestion.fieldName);
                                 }
+                                else if (rawResponses.Trim().StartsWith("calc:", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    // Only parse calculations for automatic question types
+                                    if (curQuestion.questionType == "automatic")
+                                    {
+                                        // Exclude built-in automatic fields that don't need calculations
+                                        string[] builtInFields = { "starttime", "stoptime", "uniqueid", "swver", "survey_id", "lastmod" };
+                                        if (!builtInFields.Contains(curQuestion.fieldName.ToLower()))
+                                        {
+                                            ParseAutomaticCalculation(rawResponses, curQuestion, worksheet.Name, curQuestion.fieldName);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        errorsEncountered = true;
+                                        worksheetErrorsEncountered = true;
+                                        logstring.Add($"ERROR - Calculation: FieldName '{curQuestion.fieldName}' in worksheet '{worksheet.Name}' has calculation syntax but QuestionType is not 'automatic'.");
+                                    }
+                                }
                                 else
                                 {
                                     curQuestion.responses = rawResponses;
@@ -1082,6 +1101,326 @@ namespace generatexml
                         logstring.Add($"WARNING - Responses: Unknown dynamic response key '{key}' for FieldName '{fieldName}' in worksheet '{worksheetName}'.");
                         break;
                 }
+            }
+        }
+
+        //////////////////////////////////////////////////////////////////////
+        // Function to parse automatic calculation configuration
+        //////////////////////////////////////////////////////////////////////
+        private void ParseAutomaticCalculation(string responsesStr, Question question, string worksheetName, string fieldName)
+        {
+            var lines = responsesStr.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+
+            string currentCalcType = "";
+            List<string> currentWhenLines = new List<string>();
+            List<string> currentPartLines = new List<string>();
+
+            foreach (var line in lines)
+            {
+                var trimmedLine = line.Trim();
+                if (string.IsNullOrEmpty(trimmedLine)) continue;
+
+                var parts = trimmedLine.Split(new[] { ':' }, 2);
+                if (parts.Length != 2)
+                {
+                    logstring.Add($"ERROR - Calculation: Invalid line format for FieldName '{fieldName}' in worksheet '{worksheetName}': '{trimmedLine}'");
+                    errorsEncountered = true;
+                    worksheetErrorsEncountered = true;
+                    continue;
+                }
+
+                var key = parts[0].Trim().ToLower();
+                var value = parts[1].Trim();
+
+                switch (key)
+                {
+                    case "calc":
+                        currentCalcType = value.ToLower();
+                        if (Enum.TryParse(value, true, out CalculationType calcType))
+                        {
+                            question.CalculationType = calcType;
+                        }
+                        else
+                        {
+                            logstring.Add($"ERROR - Calculation: Invalid calculation type '{value}' for FieldName '{fieldName}' in worksheet '{worksheetName}'. Must be 'query', 'case', 'constant', 'lookup', 'math', or 'concat'.");
+                            errorsEncountered = true;
+                            worksheetErrorsEncountered = true;
+                        }
+                        break;
+
+                    case "sql":
+                        question.CalculationQuerySql = value;
+                        break;
+
+                    case "param":
+                        ParseParameter(value, question, worksheetName, fieldName);
+                        break;
+
+                    case "when":
+                        currentWhenLines.Add(value);
+                        break;
+
+                    case "else":
+                        if (currentCalcType == "case")
+                        {
+                            question.CalculationCaseElse = ParseResultValue(value, worksheetName, fieldName);
+                        }
+                        break;
+
+                    case "value":
+                        if (currentCalcType == "constant")
+                        {
+                            question.CalculationConstantValue = value;
+                        }
+                        break;
+
+                    case "field":
+                        if (currentCalcType == "lookup")
+                        {
+                            question.CalculationLookupField = value;
+                        }
+                        break;
+
+                    case "operator":
+                        if (currentCalcType == "math")
+                        {
+                            if (new[] { "+", "-", "*", "/" }.Contains(value))
+                            {
+                                question.CalculationMathOperator = value;
+                            }
+                            else
+                            {
+                                logstring.Add($"ERROR - Calculation: Invalid math operator '{value}' for FieldName '{fieldName}' in worksheet '{worksheetName}'. Must be +, -, *, or /.");
+                                errorsEncountered = true;
+                                worksheetErrorsEncountered = true;
+                            }
+                        }
+                        break;
+
+                    case "separator":
+                        if (currentCalcType == "concat")
+                        {
+                            question.CalculationConcatSeparator = value;
+                        }
+                        break;
+
+                    case "part":
+                        currentPartLines.Add(value);
+                        break;
+
+                    default:
+                        logstring.Add($"WARNING - Calculation: Unknown calculation key '{key}' for FieldName '{fieldName}' in worksheet '{worksheetName}'.");
+                        break;
+                }
+            }
+
+            // Process when conditions for case calculations
+            if (currentCalcType == "case" && currentWhenLines.Count > 0)
+            {
+                foreach (var whenLine in currentWhenLines)
+                {
+                    ParseWhenCondition(whenLine, question, worksheetName, fieldName);
+                }
+            }
+
+            // Process parts for math/concat calculations
+            if ((currentCalcType == "math" || currentCalcType == "concat") && currentPartLines.Count > 0)
+            {
+                foreach (var partLine in currentPartLines)
+                {
+                    var part = ParsePartLine(partLine, worksheetName, fieldName);
+                    if (part != null)
+                    {
+                        if (currentCalcType == "math")
+                        {
+                            question.CalculationMathParts.Add(part);
+                        }
+                        else if (currentCalcType == "concat")
+                        {
+                            question.CalculationConcatParts.Add(part);
+                        }
+                    }
+                }
+            }
+
+            // Validate required fields per calculation type
+            ValidateCalculationFields(question, worksheetName, fieldName);
+        }
+
+        private void ParseParameter(string paramStr, Question question, string worksheetName, string fieldName)
+        {
+            // Expected format: @paramName = fieldName
+            var match = System.Text.RegularExpressions.Regex.Match(paramStr, @"^(@?\w+)\s*=\s*(\w+)$");
+            if (match.Success)
+            {
+                var param = new CalculationParameter
+                {
+                    Name = match.Groups[1].Value.Trim(),
+                    FieldName = match.Groups[2].Value.Trim()
+                };
+
+                // Ensure parameter name starts with @
+                if (!param.Name.StartsWith("@"))
+                {
+                    param.Name = "@" + param.Name;
+                }
+
+                question.CalculationQueryParameters.Add(param);
+            }
+            else
+            {
+                logstring.Add($"ERROR - Calculation: Invalid parameter format '{paramStr}' for FieldName '{fieldName}' in worksheet '{worksheetName}'. Expected format: '@paramName = fieldName'.");
+                errorsEncountered = true;
+                worksheetErrorsEncountered = true;
+            }
+        }
+
+        private void ParseWhenCondition(string whenStr, Question question, string worksheetName, string fieldName)
+        {
+            // Expected format: field operator value => result
+            var match = System.Text.RegularExpressions.Regex.Match(whenStr, @"^(\w+)\s+(=|!=|<>|>=|<=|>|<)\s+(.+?)\s*=>\s*(.+)$");
+            if (match.Success)
+            {
+                var condition = new CaseCondition
+                {
+                    Field = match.Groups[1].Value.Trim(),
+                    Operator = match.Groups[2].Value.Trim(),
+                    Value = match.Groups[3].Value.Trim(),
+                    Result = ParseResultValue(match.Groups[4].Value.Trim(), worksheetName, fieldName)
+                };
+
+                question.CalculationCaseConditions.Add(condition);
+            }
+            else
+            {
+                logstring.Add($"ERROR - Calculation: Invalid when condition format '{whenStr}' for FieldName '{fieldName}' in worksheet '{worksheetName}'. Expected format: 'field operator value => result'.");
+                errorsEncountered = true;
+                worksheetErrorsEncountered = true;
+            }
+        }
+
+        private CalculationPart ParseResultValue(string resultStr, string worksheetName, string fieldName)
+        {
+            // Result is typically a simple constant value
+            return new CalculationPart
+            {
+                Type = CalculationType.Constant,
+                ConstantValue = resultStr
+            };
+        }
+
+        private CalculationPart ParsePartLine(string partLine, string worksheetName, string fieldName)
+        {
+            // Expected formats:
+            // "constant VALUE"
+            // "lookup FIELD"
+            // "query SQL"
+
+            var words = partLine.Split(new[] { ' ' }, 2);
+            if (words.Length < 2)
+            {
+                logstring.Add($"ERROR - Calculation: Invalid part format '{partLine}' for FieldName '{fieldName}' in worksheet '{worksheetName}'. Expected 'type value'.");
+                errorsEncountered = true;
+                worksheetErrorsEncountered = true;
+                return null;
+            }
+
+            var partType = words[0].Trim().ToLower();
+            var partValue = words[1].Trim();
+
+            var part = new CalculationPart();
+
+            switch (partType)
+            {
+                case "constant":
+                    part.Type = CalculationType.Constant;
+                    part.ConstantValue = partValue;
+                    break;
+
+                case "lookup":
+                    part.Type = CalculationType.Lookup;
+                    part.LookupField = partValue;
+                    break;
+
+                case "query":
+                    part.Type = CalculationType.Query;
+                    part.QuerySql = partValue;
+                    // Note: Parameters in parts are not currently supported in Excel syntax
+                    break;
+
+                default:
+                    logstring.Add($"ERROR - Calculation: Invalid part type '{partType}' for FieldName '{fieldName}' in worksheet '{worksheetName}'. Must be 'constant', 'lookup', or 'query'.");
+                    errorsEncountered = true;
+                    worksheetErrorsEncountered = true;
+                    return null;
+            }
+
+            return part;
+        }
+
+        private void ValidateCalculationFields(Question question, string worksheetName, string fieldName)
+        {
+            switch (question.CalculationType)
+            {
+                case CalculationType.Query:
+                    if (string.IsNullOrEmpty(question.CalculationQuerySql))
+                    {
+                        logstring.Add($"ERROR - Calculation: Query calculation for FieldName '{fieldName}' in worksheet '{worksheetName}' is missing required 'sql' field.");
+                        errorsEncountered = true;
+                        worksheetErrorsEncountered = true;
+                    }
+                    break;
+
+                case CalculationType.Case:
+                    if (question.CalculationCaseConditions.Count == 0)
+                    {
+                        logstring.Add($"ERROR - Calculation: Case calculation for FieldName '{fieldName}' in worksheet '{worksheetName}' is missing 'when' conditions.");
+                        errorsEncountered = true;
+                        worksheetErrorsEncountered = true;
+                    }
+                    break;
+
+                case CalculationType.Constant:
+                    if (string.IsNullOrEmpty(question.CalculationConstantValue))
+                    {
+                        logstring.Add($"ERROR - Calculation: Constant calculation for FieldName '{fieldName}' in worksheet '{worksheetName}' is missing required 'value' field.");
+                        errorsEncountered = true;
+                        worksheetErrorsEncountered = true;
+                    }
+                    break;
+
+                case CalculationType.Lookup:
+                    if (string.IsNullOrEmpty(question.CalculationLookupField))
+                    {
+                        logstring.Add($"ERROR - Calculation: Lookup calculation for FieldName '{fieldName}' in worksheet '{worksheetName}' is missing required 'field' field.");
+                        errorsEncountered = true;
+                        worksheetErrorsEncountered = true;
+                    }
+                    break;
+
+                case CalculationType.Math:
+                    if (string.IsNullOrEmpty(question.CalculationMathOperator))
+                    {
+                        logstring.Add($"ERROR - Calculation: Math calculation for FieldName '{fieldName}' in worksheet '{worksheetName}' is missing required 'operator' field.");
+                        errorsEncountered = true;
+                        worksheetErrorsEncountered = true;
+                    }
+                    if (question.CalculationMathParts.Count < 2)
+                    {
+                        logstring.Add($"ERROR - Calculation: Math calculation for FieldName '{fieldName}' in worksheet '{worksheetName}' must have at least 2 parts.");
+                        errorsEncountered = true;
+                        worksheetErrorsEncountered = true;
+                    }
+                    break;
+
+                case CalculationType.Concat:
+                    if (question.CalculationConcatParts.Count == 0)
+                    {
+                        logstring.Add($"ERROR - Calculation: Concat calculation for FieldName '{fieldName}' in worksheet '{worksheetName}' must have at least 1 part.");
+                        errorsEncountered = true;
+                        worksheetErrorsEncountered = true;
+                    }
+                    break;
             }
         }
 

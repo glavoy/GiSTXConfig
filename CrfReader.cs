@@ -37,6 +37,7 @@ namespace generatexml
                 crf.auto_start_repeat = GetNullableInt(range, rowCount, 12);
                 crf.repeat_enforce_count = GetNullableInt(range, rowCount, 13);
                 crf.display_fields = GetString(range, rowCount, 14);
+                crf.entry_condition = GetString(range, rowCount, 15);
 
                 crfs.Add(crf);
             }
