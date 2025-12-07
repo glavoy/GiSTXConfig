@@ -5,6 +5,8 @@ using System.IO.Compression;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
+using System.Threading.Tasks;
+using System.Diagnostics;
 using Excel = Microsoft.Office.Interop.Excel;
 using Microsoft.Office.Interop.Excel;
 using GistConfigX;
@@ -22,7 +24,7 @@ namespace generatexml
         }
 
         // Version
-        readonly string swVer = "2025-11-19";
+        readonly string swVer = "2025-12-07";
 
         private void Main_Load(object sender, EventArgs e)
         {
@@ -61,35 +63,136 @@ namespace generatexml
         List<string> generatedFiles = new List<string>();
 
 
+        // Track progress
+        private int totalQuestions = 0;
+        private int processedQuestions = 0;
+        private Stopwatch stopwatch = new Stopwatch();
+
         // Function when button is clicked
-        private void ButtonXML_Click(object sender, EventArgs e)
+        private async void ButtonXML_Click(object sender, EventArgs e)
         {
+            // Disable button and show progress UI
+            ButtonGenerate.Enabled = false;
+            progressBar.Visible = true;
+            progressBar.Value = 0;
+            labelProgress.Visible = true;
+            labelProgress.Text = "";
+            labelStatus.Text = "Initializing...";
+
+            // Reset state and start timing
+            errorsEncountered = false;
+            logstring.Clear();
+            logstring.Add("Log file for: " + config.excelFile);
+            Primary_Keys.Clear();
+            generatedFiles.Clear();
+            totalQuestions = 0;
+            processedQuestions = 0;
+            stopwatch.Restart();
+
+            // Create progress reporter for UI updates
+            // processedQuestions goes 1 to 680 (340 validation + 340 generation)
+            // Display as 1 to 340 by dividing by 2
+            var progress = new Progress<(string worksheet, string fieldName, string phase)>(report =>
+            {
+                processedQuestions++;
+                if (totalQuestions > 0)
+                {
+                    // Progress bar: 0-100% across both phases
+                    int percentage = (int)((processedQuestions * 100.0) / (totalQuestions * 2));
+                    progressBar.Value = Math.Min(percentage, 100);
+
+                    // Display count: divide by 2 so it shows 1-340 once (not twice)
+                    int displayedCount = (processedQuestions + 1) / 2;
+                    labelProgress.Text = $"{displayedCount} / {totalQuestions}";
+                }
+                labelStatus.Text = $"{report.phase}: {report.worksheet} - {report.fieldName}";
+            });
+
             try
             {
-                // Use a wait cursor
-                Cursor.Current = Cursors.WaitCursor;
+                await Task.Run(() => ProcessExcelFile(progress));
 
-                // Start logging of any error
-                logstring.Add("Log file for: " + config.excelFile);
-                Primary_Keys.Clear();
-                generatedFiles.Clear();
+                // Stop timing
+                stopwatch.Stop();
+                TimeSpan elapsed = stopwatch.Elapsed;
 
+                // Write log file
+                writeLogfile();
+
+                // Update UI to show completion
+                progressBar.Value = 100;
+                labelProgress.Text = $"{totalQuestions} / {totalQuestions}";
+
+                // Show the appropriate Message Box
+                if (errorsEncountered)
+                {
+                    labelStatus.Text = $"Completed with errors in {elapsed.TotalSeconds:F1} seconds";
+                    MessageBox.Show("The Data Dictionary contains errors! \r\rThe XML files and manifest HAVE NOT not been created! \r\rPlease refer to the log file and rectify all errors.", "ERRORS FOUND", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+                else
+                {
+                    // Create zip file with all generated files
+                    CreateZipFile();
+                    labelStatus.Text = $"Complete! Processed {totalQuestions} questions in {elapsed.TotalSeconds:F1} seconds";
+                    MessageBox.Show("Done Building the xml file(s) and the manifest. No errors were found. \r\rAll files have been packaged in " + config.surveyId + ".zip. \r\rPlease refer to the log file.", "SUCCESS", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                stopwatch.Stop();
+                Console.WriteLine("Error msg " + ex.Message);
+                labelStatus.Text = $"Error occurred after {stopwatch.Elapsed.TotalSeconds:F1} seconds";
+                MessageBox.Show("ERROR: There are unexpected errors with the Excel Data Dictionary!" + ex.Message, "ERROR", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                logstring.Add("ERROR: There are unexpected errors with the Excel Data Dictionary!" + ex.Message);
+                logstring.Add("\r--------------------------------------------------------------------------------");
+                logstring.Add("End of log file");
+                logstring.Add("--------------------------------------------------------------------------------");
+                writeLogfile();
+            }
+            finally
+            {
+                // Re-enable button but keep progress visible to show completion status
+                ButtonGenerate.Enabled = true;
+            }
+        }
+
+        // Process Excel file on background thread
+        private void ProcessExcelFile(IProgress<(string worksheet, string fieldName, string phase)> progress)
+        {
+            Excel.Application xlApp = null;
+            Excel.Workbook xlWorkBook = null;
+
+            try
+            {
                 // Open the Excel file
-                Excel.Application xlApp;
-                Excel.Workbook xlWorkBook;
                 xlApp = new Excel.Application();
                 xlWorkBook = xlApp.Workbooks.Open(@config.excelFile, 0, true, 5, "", "", true,
                                                   Microsoft.Office.Interop.Excel.XlPlatform.xlWindows,
                                                   "\t", false, false, 0, true, 1, 0);
 
-                // Read each sheet of the Excel file and generate list of questions
+                // First pass: Count total questions for progress bar
                 foreach (Worksheet worksheet in xlWorkBook.Worksheets)
                 {
-                    // Data dictionaries must end in '_dd'
-                    if (worksheet.Name.Substring(worksheet.Name.Length - 3) == "_dd" || worksheet.Name.Substring(worksheet.Name.Length - 4) == "_xml")
+                    if (worksheet.Name.Length >= 3 &&
+                        (worksheet.Name.Substring(worksheet.Name.Length - 3) == "_dd" ||
+                         (worksheet.Name.Length >= 4 && worksheet.Name.Substring(worksheet.Name.Length - 4) == "_xml")))
+                    {
+                        totalQuestions += ExcelReader.CountDataRows(worksheet);
+                    }
+                }
+
+                // Validation pass: Read each sheet and validate
+                foreach (Worksheet worksheet in xlWorkBook.Worksheets)
+                {
+                    if (worksheet.Name.Length >= 3 &&
+                        (worksheet.Name.Substring(worksheet.Name.Length - 3) == "_dd" ||
+                         (worksheet.Name.Length >= 4 && worksheet.Name.Substring(worksheet.Name.Length - 4) == "_xml")))
                     {
                         ExcelReader excelReader = new ExcelReader();
-                        excelReader.CreateQuestionList(worksheet);
+                        excelReader.CreateQuestionList(worksheet, (ws, field) =>
+                        {
+                            progress.Report((ws, field, "Validating"));
+                        });
                         if (excelReader.errorsEncountered)
                         {
                             errorsEncountered = true;
@@ -98,17 +201,23 @@ namespace generatexml
                     }
                 }
 
+                // Generation pass: Generate XML files if no errors
                 if (!errorsEncountered)
                 {
                     List<string> xmlFiles = new List<string>();
                     foreach (Worksheet worksheet in xlWorkBook.Worksheets)
                     {
-                        if (worksheet.Name.Substring(worksheet.Name.Length - 3) == "_dd" || worksheet.Name.Substring(worksheet.Name.Length - 4) == "_xml")
+                        if (worksheet.Name.Length >= 3 &&
+                            (worksheet.Name.Substring(worksheet.Name.Length - 3) == "_dd" ||
+                             (worksheet.Name.Length >= 4 && worksheet.Name.Substring(worksheet.Name.Length - 4) == "_xml")))
                         {
                             string xmlFileName = worksheet.Name.Replace("_dd", ".xml").Replace("_xml", ".xml");
                             xmlFiles.Add(xmlFileName);
                             ExcelReader excelReader = new ExcelReader();
-                            excelReader.CreateQuestionList(worksheet);
+                            excelReader.CreateQuestionList(worksheet, (ws, field) =>
+                            {
+                                progress.Report((ws, field, "Generating"));
+                            });
                             QuestionList = excelReader.QuestionList;
                             // Write to the XML file
                             XmlGenerator xmlGenerator = new XmlGenerator();
@@ -117,76 +226,53 @@ namespace generatexml
                             // Track the generated XML file
                             generatedFiles.Add(Path.Combine(config.outputPath, xmlFileName));
                         }
-                        // Get the primary keys for the tables
-                        else
+                        // Process crfs worksheet
+                        else if (worksheet.Name == "crfs")
                         {
-                            if (worksheet.Name == "crfs")
+                            CrfReader crfReader = new CrfReader();
+                            List<Crf> crfs = crfReader.ReadCrfsWorksheet(worksheet);
+
+                            string databaseName = config.surveyId + ".sqlite";
+                            SurveyManifest manifest = new SurveyManifest
                             {
-                                CrfReader crfReader = new CrfReader();
-                                List<Crf> crfs = crfReader.ReadCrfsWorksheet(worksheet);
+                                surveyName = config.surveyName,
+                                surveyId = config.surveyId,
+                                databaseName = databaseName,
+                                xmlFiles = xmlFiles,
+                                crfs = crfs
+                            };
 
-                                string databaseName = config.surveyId + ".sqlite";
-                                SurveyManifest manifest = new SurveyManifest
-                                {
-                                    surveyName = config.surveyName,
-                                    surveyId = config.surveyId,
-                                    databaseName = databaseName,
-                                    xmlFiles = xmlFiles,
-                                    crfs = crfs
-                                };
-
-                                JsonGenerator jsonGenerator = new JsonGenerator();
-                                string manifestPath = Path.Combine(config.outputPath, "survey_manifest.gistx");
-                                jsonGenerator.Generate(manifestPath, manifest);
-                                logstring.Add("");
-                                logstring.Add("Successfully generated survey_manifest.gistx");
-                                // Track the generated manifest file
-                                generatedFiles.Add(manifestPath);
-                            }
+                            JsonGenerator jsonGenerator = new JsonGenerator();
+                            string manifestPath = Path.Combine(config.outputPath, "survey_manifest.gistx");
+                            jsonGenerator.Generate(manifestPath, manifest);
+                            logstring.Add("");
+                            logstring.Add("Successfully generated survey_manifest.gistx");
+                            // Track the generated manifest file
+                            generatedFiles.Add(manifestPath);
                         }
                     }
                 }
 
-                //cleanup
+                logstring.Add("\r--------------------------------------------------------------------------------");
+                logstring.Add("End of log file");
+                logstring.Add("--------------------------------------------------------------------------------");
+            }
+            finally
+            {
+                // Cleanup COM objects
+                if (xlWorkBook != null)
+                {
+                    xlWorkBook.Close(false, null, null);
+                    Marshal.ReleaseComObject(xlWorkBook);
+                }
+                if (xlApp != null)
+                {
+                    xlApp.Quit();
+                    Marshal.ReleaseComObject(xlApp);
+                }
                 GC.Collect();
                 GC.WaitForPendingFinalizers();
-                xlWorkBook.Close(true, null, null);
-                xlApp.Quit();
-                Marshal.ReleaseComObject(xlWorkBook);
-                Marshal.ReleaseComObject(xlApp);
-                logstring.Add("\r--------------------------------------------------------------------------------");
-                logstring.Add("End of log file");
-                logstring.Add("--------------------------------------------------------------------------------");
-                writeLogfile();
-
-                // Show the appropriate Message Box
-                if (errorsEncountered)
-                {
-                    MessageBox.Show("The Data Dictionary contains errors! \r\rThe XML files and manifest HAVE NOT not been created! \r\rPlease refer to the log file and rectify all errors.", "ERRORS FOUND", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-                else
-                {
-                    // Create zip file with all generated files
-                    CreateZipFile();
-                    MessageBox.Show("Done Building the xml file(s) and the manifest. No errors were found. \r\rAll files have been packaged in " + config.surveyId + ".zip. \r\rPlease refer to the log file.", "SUCCESS", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }
             }
-
-
-
-            // Error handling in caase we could not crread the Excel file
-            catch (Exception ex)
-            {
-                Console.WriteLine("Error msg " + ex.Message);
-                MessageBox.Show("ERROR: There are unexpected errors with the Excel Data Dictionary!" + ex.Message, "ERROR", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                logstring.Add("ERROR: There are unexpected errors with the Excel Data Dictionary!" + ex.Message);
-                logstring.Add("\r--------------------------------------------------------------------------------");
-                logstring.Add("End of log file");
-                logstring.Add("--------------------------------------------------------------------------------");
-            }
-
-            // Put the cursor back to normal
-            Cursor.Current = Cursors.Default;
         }
 
         private void writeLogfile()

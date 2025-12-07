@@ -18,7 +18,7 @@ namespace generatexml
         readonly int numberOfColumns = 14;
         readonly string[] columnNamesArray = { "FieldName", "QuestionType", "FieldType", "QuestionText", "MaxCharacters", "Responses", "LowerRange", "UpperRange", "LogicCheck", "DontKnow", "Refuse", "NA", "Skip", "Comments" };
 
-        public void CreateQuestionList(Worksheet worksheet)
+        public void CreateQuestionList(Worksheet worksheet, Action<string, string> onQuestionProcessed = null)
         {
             try
             {
@@ -230,6 +230,9 @@ namespace generatexml
                                     CheckSkipSyntax(worksheet.Name, curQuestion.skip, curQuestion.fieldName);
                                 }
                                 QuestionList.Add(curQuestion);
+
+                                // Report progress
+                                onQuestionProcessed?.Invoke(worksheet.Name, curQuestion.fieldName);
                             }
                         }
                     }
@@ -286,6 +289,34 @@ namespace generatexml
             }
         }
 
+
+        //////////////////////////////////////////////////////////////////////
+        // Function to count data rows (questions) in a worksheet
+        //////////////////////////////////////////////////////////////////////
+        public static int CountDataRows(Worksheet worksheet)
+        {
+            try
+            {
+                Excel.Range range = worksheet.UsedRange;
+                int numRows = range.Rows.Count;
+                int count = 0;
+
+                // Count non-merged rows (actual questions), starting from row 2 (skip header)
+                for (int rowCount = 2; rowCount <= numRows; rowCount++)
+                {
+                    Range rowRange = worksheet.Cells[rowCount, 14]; // Check column 14 (Comments)
+                    if (!rowRange.MergeCells)
+                    {
+                        count++;
+                    }
+                }
+                return count;
+            }
+            catch
+            {
+                return 0;
+            }
+        }
 
         //////////////////////////////////////////////////////////////////////
         // Function to verify field name
