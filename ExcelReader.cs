@@ -18,6 +18,22 @@ namespace generatexml
         readonly int numberOfColumns = 14;
         readonly string[] columnNamesArray = { "FieldName", "QuestionType", "FieldType", "QuestionText", "MaxCharacters", "Responses", "LowerRange", "UpperRange", "LogicCheck", "DontKnow", "Refuse", "NA", "Skip", "Comments" };
 
+        // Helper method for bulk read - gets cell value from cached array with trimming
+        private static string GetCellValue(object[,] data, int row, int col)
+        {
+            if (data == null || row < 1 || row > data.GetLength(0) || col < 1 || col > data.GetLength(1))
+                return "";
+            return data[row, col]?.ToString()?.Trim() ?? "";
+        }
+
+        // Helper method for bulk read - gets cell value without trimming (for responses that may have intentional formatting)
+        private static string GetCellValueRaw(object[,] data, int row, int col)
+        {
+            if (data == null || row < 1 || row > data.GetLength(0) || col < 1 || col > data.GetLength(1))
+                return "";
+            return data[row, col]?.ToString() ?? "";
+        }
+
         public void CreateQuestionList(Worksheet worksheet, Action<string, string> onQuestionProcessed = null)
         {
             try
@@ -33,8 +49,12 @@ namespace generatexml
                 // Get the range of used cells in the Excel file
                 range = worksheet.UsedRange;
 
+                // BULK READ: Load entire worksheet data into memory for fast access
+                // This dramatically reduces COM interop calls from ~4760 per worksheet to just 1
+                object[,] data = range.Value2 as object[,];
+
                 // Variable to get the total number of rows used in the Excel file
-                int numRows = range.Rows.Count;
+                int numRows = data != null ? data.GetLength(0) : 0;
 
                 // Used to determine if a row is merged or not
                 // All rows that are not questions, must be merged
@@ -58,7 +78,7 @@ namespace generatexml
 
                             for (int i = 0; i < numberOfColumns; i++)
                             {
-                                currentColumnNamesArr[i] = range.Cells[1, i + 1].Value2.ToString();
+                                currentColumnNamesArr[i] = GetCellValue(data, 1, i + 1);
                             }
                             // Check to make sure the column names are correct
                             if (!columnNamesArray.SequenceEqual(currentColumnNamesArr))
@@ -76,7 +96,7 @@ namespace generatexml
                                 var curQuestion = new Question { };
 
                                 // Get the fieldName and verify it
-                                curQuestion.fieldName = range.Cells[rowCount, 1] != null && range.Cells[rowCount, 1].Value2 != null ? range.Cells[rowCount, 1].Value2.ToString() : "";
+                                curQuestion.fieldName = GetCellValue(data, rowCount, 1);
                                 if (string.IsNullOrEmpty(curQuestion.fieldName))
                                 {
                                     errorsEncountered = true;
@@ -87,13 +107,13 @@ namespace generatexml
                                 CheckFieldName(worksheet.Name, curQuestion.fieldName);
 
                                 // Get the questionType
-                                curQuestion.questionType = range.Cells[rowCount, 2] != null && range.Cells[rowCount, 2].Value2 != null ? range.Cells[rowCount, 2].Value2.ToString() : "";
+                                curQuestion.questionType = GetCellValue(data, rowCount, 2);
 
                                 // Get the fieldType
-                                curQuestion.fieldType = range.Cells[rowCount, 3] != null && range.Cells[rowCount, 3].Value2 != null ? range.Cells[rowCount, 3].Value.ToString() : "";
+                                curQuestion.fieldType = GetCellValue(data, rowCount, 3);
 
                                 // Get Question Text
-                                curQuestion.questionText = range.Cells[rowCount, 4] != null && range.Cells[rowCount, 4].Value2 != null ? range.Cells[rowCount, 4].Value2.ToString() : "";
+                                curQuestion.questionText = GetCellValue(data, rowCount, 4);
                                 if (curQuestion.questionText == "" && curQuestion.questionType != "automatic")
                                 {
                                     errorsEncountered = true;
@@ -102,14 +122,15 @@ namespace generatexml
                                 }
 
                                 // Get max Characters
-                                curQuestion.maxCharacters = range.Cells[rowCount, 5] != null && range.Cells[rowCount, 5].Value2 != null ? range.Cells[rowCount, 5].Value2.ToString() : "-9";
+                                string maxCharsValue = GetCellValue(data, rowCount, 5);
+                                curQuestion.maxCharacters = string.IsNullOrEmpty(maxCharsValue) ? "-9" : maxCharsValue;
                                 if (curQuestion.maxCharacters != "-9")
                                 {
                                     CheckMaxCharacters(worksheet.Name, curQuestion.maxCharacters, curQuestion.fieldName);
                                 }
 
-                                // Get the responses string
-                                string rawResponses = range.Cells[rowCount, 6] != null && range.Cells[rowCount, 6].Value2 != null ? range.Cells[rowCount, 6].Value2.ToString() : "";
+                                // Get the responses string (use raw to preserve formatting)
+                                string rawResponses = GetCellValueRaw(data, rowCount, 6);
 
                                 if (rawResponses.Trim().StartsWith("source:", StringComparison.OrdinalIgnoreCase))
                                 {
@@ -149,8 +170,10 @@ namespace generatexml
                                 CheckQuestionFieldType(curQuestion, worksheet.Name);
 
                                 // Get Lower range
-                                curQuestion.lowerRange = range.Cells[rowCount, 7] != null && range.Cells[rowCount, 7].Value2 != null ? range.Cells[rowCount, 7].Value2.ToString() : "-9";
-                                curQuestion.upperRange = range.Cells[rowCount, 8] != null && range.Cells[rowCount, 8].Value2 != null ? range.Cells[rowCount, 8].Value2.ToString() : "-9";
+                                string lowerValue = GetCellValue(data, rowCount, 7);
+                                curQuestion.lowerRange = string.IsNullOrEmpty(lowerValue) ? "-9" : lowerValue;
+                                string upperValue = GetCellValue(data, rowCount, 8);
+                                curQuestion.upperRange = string.IsNullOrEmpty(upperValue) ? "-9" : upperValue;
                                 if (curQuestion.questionType == "date")
                                 {
                                     CheckDateRange(worksheet.Name, curQuestion.lowerRange, curQuestion.fieldName, "LowerRange");
@@ -170,7 +193,7 @@ namespace generatexml
 
 
                                 // Get Logic check
-                                curQuestion.logicCheck = range.Cells[rowCount, 9] != null && range.Cells[rowCount, 9].Value2 != null ? range.Cells[rowCount, 9].Value2.ToString() : "";
+                                curQuestion.logicCheck = GetCellValue(data, rowCount, 9);
                                 if (curQuestion.logicCheck.Trim().StartsWith("unique;"))
                                 {
                                     string[] parts = curQuestion.logicCheck.Split(new char[] { ';' }, 2);
@@ -204,27 +227,30 @@ namespace generatexml
 
                                 // Special Buttons
                                 // don't know
-                                curQuestion.dontKnow = range.Cells[rowCount, 10] != null && range.Cells[rowCount, 10].Value2 != null ? range.Cells[rowCount, 10].Value2.ToString() : "-9";
+                                string dontKnowValue = GetCellValue(data, rowCount, 10);
+                                curQuestion.dontKnow = string.IsNullOrEmpty(dontKnowValue) ? "-9" : dontKnowValue;
                                 if (curQuestion.dontKnow != "-9")
                                 {
                                     CheckSpecialButton(worksheet.Name, curQuestion.dontKnow, curQuestion.fieldName, "DontKnow");
                                 }
                                 //refuse
-                                curQuestion.refuse = range.Cells[rowCount, 11] != null && range.Cells[rowCount, 11].Value2 != null ? range.Cells[rowCount, 11].Value2.ToString() : "-9";
+                                string refuseValue = GetCellValue(data, rowCount, 11);
+                                curQuestion.refuse = string.IsNullOrEmpty(refuseValue) ? "-9" : refuseValue;
                                 if (curQuestion.refuse != "-9")
                                 {
                                     CheckSpecialButton(worksheet.Name, curQuestion.refuse, curQuestion.fieldName, "Refuse");
                                 }
 
 
-                                curQuestion.na = range.Cells[rowCount, 12] != null && range.Cells[rowCount, 12].Value2 != null ? range.Cells[rowCount, 12].Value2.ToString() : "-9";
+                                string naValue = GetCellValue(data, rowCount, 12);
+                                curQuestion.na = string.IsNullOrEmpty(naValue) ? "-9" : naValue;
                                 if (curQuestion.na != "-9")
                                 {
                                     CheckSpecialButton(worksheet.Name, curQuestion.na, curQuestion.fieldName, "NA");
                                 }
 
 
-                                curQuestion.skip = range.Cells[rowCount, 13] != null && range.Cells[rowCount, 13].Value2 != null ? range.Cells[rowCount, 13].Value2.ToString() : "";
+                                curQuestion.skip = GetCellValue(data, rowCount, 13);
                                 if (curQuestion.skip != "")
                                 {
                                     CheckSkipSyntax(worksheet.Name, curQuestion.skip, curQuestion.fieldName);
@@ -244,24 +270,7 @@ namespace generatexml
                     }
                 }
 
-                // Trim and leading and trailing spaces
-                foreach (Question question in QuestionList)
-                {
-                    question.fieldName = question.fieldName?.Trim();
-                    question.questionType = question.questionType?.Trim();
-                    question.fieldType = question.fieldType?.Trim();
-                    question.questionText = question.questionText?.Trim();
-                    question.maxCharacters = question.maxCharacters?.Trim();
-                    question.responses = question.responses?.Trim();
-                    question.lowerRange = question.lowerRange?.Trim();
-                    question.upperRange = question.upperRange?.Trim();
-                    question.logicCheck = question.logicCheck?.Trim();
-                    question.uniqueCheckMessage = question.uniqueCheckMessage?.Trim();
-                    question.dontKnow = question.dontKnow?.Trim();
-                    question.refuse = question.refuse?.Trim();
-                    question.na = question.na?.Trim();
-                    question.skip = question.skip?.Trim();
-                }
+                // Note: Trimming is now done in GetCellValue() during the bulk read
 
                 if (worksheetErrorsEncountered == false)
                 {
