@@ -18,6 +18,32 @@ namespace generatexml
         readonly int numberOfColumns = 14;
         readonly string[] columnNamesArray = { "FieldName", "QuestionType", "FieldType", "QuestionText", "MaxCharacters", "Responses", "LowerRange", "UpperRange", "LogicCheck", "DontKnow", "Refuse", "NA", "Skip", "Comments" };
 
+        // Static compiled Regex patterns for performance (compiled once, reused)
+        private static readonly Regex NumericOnlyRegex = new Regex(@"^\d+$", RegexOptions.Compiled);
+        private static readonly Regex DecimalRegex = new Regex(@"^\d+(\.\d+)?$", RegexOptions.Compiled);
+        private static readonly Regex DateRangeRegex = new Regex(@"^([+-])(\d+)([dwmy])$", RegexOptions.Compiled);
+        private static readonly Regex FieldNameRegex = new Regex(@"\b[a-z_][a-z0-9_]*\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static readonly Regex QuotedStringRegex = new Regex(@"'[^']*'", RegexOptions.Compiled);
+        private static readonly Regex FilterMatchRegex = new Regex(@"^(\w+)\s*(?:(=|!=|<>|>|<|>=|<=)\s*)?(.+)$", RegexOptions.Compiled);
+        private static readonly Regex ParameterRegex = new Regex(@"^(@?\w+)\s*=\s*(\w+)$", RegexOptions.Compiled);
+        private static readonly Regex WhenConditionRegex = new Regex(@"^(\w+)\s+(=|!=|<>|>=|<=|>|<)\s+(.+?)\s*=>\s*(.+)$", RegexOptions.Compiled);
+
+        // Static HashSet constants for O(1) lookups (instead of O(n) array scans)
+        private static readonly HashSet<string> ValidQuestionTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            { "radio", "combobox", "checkbox", "text", "date", "information", "automatic", "button" };
+
+        private static readonly HashSet<string> ValidFieldTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            { "text", "datetime", "date", "phone_num", "integer", "text_integer", "text_decimal", "text_id", "n/a", "hourmin" };
+
+        private static readonly HashSet<string> BuiltInAutoFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            { "starttime", "stoptime", "uniqueid", "swver", "survey_id", "lastmod" };
+
+        private static readonly HashSet<string> DateFieldTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            { "date", "datetime" };
+
+        private static readonly HashSet<string> LogicKeywords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            { "and", "or", "not" };
+
         // Helper method for bulk read - gets cell value from cached array with trimming
         private static string GetCellValue(object[,] data, int row, int col)
         {
@@ -142,8 +168,8 @@ namespace generatexml
                                     if (curQuestion.questionType == "automatic")
                                     {
                                         // Exclude built-in automatic fields that don't need calculations
-                                        string[] builtInFields = { "starttime", "stoptime", "uniqueid", "swver", "survey_id", "lastmod" };
-                                        if (!builtInFields.Contains(curQuestion.fieldName.ToLower()))
+                                        // Using static HashSet for O(1) lookup (case-insensitive)
+                                        if (!BuiltInAutoFields.Contains(curQuestion.fieldName))
                                         {
                                             ParseAutomaticCalculation(rawResponses, curQuestion, worksheet.Name, curQuestion.fieldName);
                                         }
@@ -371,8 +397,11 @@ namespace generatexml
         //////////////////////////////////////////////////////////////////////
         private void CheckMaxCharacters(string worksheet, string maxChars, string fieldname)
         {
-            // Check if maxCharacters is numeric
-            if (!Regex.IsMatch(maxChars, @"^\d+$"))
+            // Extract the numeric part (remove optional '=' prefix)
+            string numericPart = maxChars.StartsWith("=") ? maxChars.Substring(1) : maxChars;
+
+            // Check if the numeric part is valid
+            if (!NumericOnlyRegex.IsMatch(numericPart))
             {
                 errorsEncountered = true;
                 worksheetErrorsEncountered = true;
@@ -380,7 +409,7 @@ namespace generatexml
                 return;
             }
 
-            if (int.TryParse(maxChars, out int num))
+            if (int.TryParse(numericPart, out int num))
             {
                 if (num < 1 || num > 2000)
                 {
@@ -403,18 +432,15 @@ namespace generatexml
             string fieldname = question.fieldName;
             string responseStr = question.responses;
 
-            string[] qtype = { "radio", "combobox", "checkbox", "text", "date", "information", "automatic", "button" };
-            string[] ftype = { "text", "datetime", "date", "phone_num", "integer", "text_integer", "text_decimal", "text_id", "n/a", "hourmin" };
-
-
-            if (!qtype.Contains(questiontype))
+            // Using static HashSets for O(1) lookup instead of array O(n) scan
+            if (!ValidQuestionTypes.Contains(questiontype))
             {
                 errorsEncountered = true;
                 worksheetErrorsEncountered = true;
                 logstring.Add("ERROR - QuestionType: The QuestionType " + questiontype + " for FieldName '" + fieldname + "' in table '" + tblename + "' is not among the predefined list.");
             }
 
-            if (!ftype.Contains(fieldtype))
+            if (!ValidFieldTypes.Contains(fieldtype))
             {
                 errorsEncountered = true;
                 worksheetErrorsEncountered = true;
@@ -536,8 +562,8 @@ namespace generatexml
         private void CheckUpperLowerRange(string worksheet, string range, string fieldname, string rangeName)
         {
             // Check if range is numeric
-            //if (!Regex.IsMatch(range, @"^\d+$"))
-            if (!Regex.IsMatch(range, @"^\d+(\.\d+)?$"))
+            //if (!NumericOnlyRegex.IsMatch(range))
+            if (!DecimalRegex.IsMatch(range))
             {
                 errorsEncountered = true;
                 worksheetErrorsEncountered = true;
@@ -558,8 +584,7 @@ namespace generatexml
 
             if (range == "0" || range == "+0d" || range == "-0d") return;
 
-            string pattern = @"^([+-])(\d+)([dwmy])$";
-            if (!Regex.IsMatch(range, pattern))
+            if (!DateRangeRegex.IsMatch(range))
             {
                 errorsEncountered = true;
                 worksheetErrorsEncountered = true;
@@ -799,11 +824,11 @@ namespace generatexml
             string curFieldname = "";
             try
             {
-                // Create a list of all the fieldnames in the worksheet
-                List<string> fieldnames = new List<string>();
-                foreach (Question question in QuestionList)
+                // Create a Dictionary for O(1) index lookup instead of O(n) List.IndexOf
+                Dictionary<string, int> fieldnameIndex = new Dictionary<string, int>();
+                for (int i = 0; i < QuestionList.Count; i++)
                 {
-                    fieldnames.Add(question.fieldName);
+                    fieldnameIndex[QuestionList[i].fieldName] = i;
                 }
 
                 foreach (Question question in QuestionList)
@@ -818,18 +843,18 @@ namespace generatexml
 
                         // Extract potential field names from the expression
                         // Remove quoted strings first to avoid matching field names in quotes
-                        string cleanExpression = Regex.Replace(expression, @"'[^']*'", "");
+                        string cleanExpression = QuotedStringRegex.Replace(expression, "");
 
                         // Match word characters (field names) - excluding operators and numbers
                         // Field names are alphanumeric + underscore, starting with a letter
-                        MatchCollection matches = Regex.Matches(cleanExpression, @"\b[a-z_][a-z0-9_]*\b");
+                        MatchCollection matches = FieldNameRegex.Matches(cleanExpression);
 
                         HashSet<string> referencedFieldNames = new HashSet<string>();
                         foreach (Match match in matches)
                         {
                             string potentialFieldName = match.Value;
-                            // Skip SQL/logic keywords
-                            if (potentialFieldName != "and" && potentialFieldName != "or" && potentialFieldName != "not")
+                            // Skip SQL/logic keywords (using HashSet for O(1) lookup)
+                            if (!LogicKeywords.Contains(potentialFieldName))
                             {
                                 referencedFieldNames.Add(potentialFieldName);
                             }
@@ -838,14 +863,13 @@ namespace generatexml
                         // Check each referenced field name
                         foreach (string referencedFieldName in referencedFieldNames)
                         {
-                            // Check if it exists in the fieldnames list
-                            if (fieldnames.Contains(referencedFieldName))
+                            // Check if it exists using Dictionary O(1) lookup
+                            if (fieldnameIndex.TryGetValue(referencedFieldName, out int refIndex))
                             {
-                                int fieldname_to_check_index = fieldnames.IndexOf(referencedFieldName);
-                                int curFieldnameIndex = fieldnames.IndexOf(curFieldname);
+                                int curIndex = fieldnameIndex[curFieldname];
 
                                 // Check if the referenced field is after the current question
-                                if (fieldname_to_check_index > curFieldnameIndex)
+                                if (refIndex > curIndex)
                                 {
                                     errorsEncountered = true;
                                     worksheetErrorsEncountered = true;
@@ -885,11 +909,11 @@ namespace generatexml
                 string fieldname_to_skip_to = "";
                 string fieldname_to_check = "";
 
-                // Create a list of all the fieldnames in the worksheet
-                List<string> fieldnames = new List<string>();
-                foreach (Question question in QuestionList)
+                // Create a Dictionary for O(1) index lookup instead of O(n) List.IndexOf
+                Dictionary<string, int> fieldnameIndex = new Dictionary<string, int>();
+                for (int i = 0; i < QuestionList.Count; i++)
                 {
-                    fieldnames.Add(question.fieldName);
+                    fieldnameIndex[QuestionList[i].fieldName] = i;
                 }
 
                 foreach (Question question in QuestionList)
@@ -907,13 +931,12 @@ namespace generatexml
                             fieldname_to_skip_to = words[words.Length - 1];
                         }
 
-                        // Check if the field name to check value of exists and is before the current question
-                        if (fieldnames.Contains(fieldname_to_check))
-                        {
-                            int fieldname_to_check_index = fieldnames.IndexOf(fieldname_to_check);
-                            int fieldname_of_skip = fieldnames.IndexOf(curFieldname);
+                        int curIndex = fieldnameIndex[curFieldname];
 
-                            if (fieldname_to_check_index > fieldname_of_skip)
+                        // Check if the field name to check value of exists and is before the current question
+                        if (fieldnameIndex.TryGetValue(fieldname_to_check, out int checkIndex))
+                        {
+                            if (checkIndex > curIndex)
                             {
                                 errorsEncountered = true;
                                 worksheetErrorsEncountered = true;
@@ -927,19 +950,16 @@ namespace generatexml
                             logstring.Add("ERROR - Skip: In worksheet '" + worksheet + "', the skip for FieldName '" + curFieldname + "' checks skip of a nonexistent FieldName: " + fieldname_to_check);
                         }
 
-                        // Check iof the field name to skip to is legitimate - exists and is after the current question
-                        if (fieldnames.Contains(fieldname_to_skip_to))
+                        // Check if the field name to skip to is legitimate - exists and is after the current question
+                        if (fieldnameIndex.TryGetValue(fieldname_to_skip_to, out int skipToIndex))
                         {
-                            int fieldname_to_skip_to_index = fieldnames.IndexOf(fieldname_to_skip_to);
-                            int fieldname_of_skip = fieldnames.IndexOf(curFieldname);
-
-                            if (fieldname_to_skip_to_index < fieldname_of_skip)
+                            if (skipToIndex < curIndex)
                             {
                                 errorsEncountered = true;
                                 worksheetErrorsEncountered = true;
                                 logstring.Add("ERROR - Skip: In worksheet '" + worksheet + "', the skip for FieldName '" + curFieldname + "' skips to a FieldName BEFORE the current question: " + fieldname_to_skip_to);
                             }
-                            else if (fieldname_to_skip_to_index == fieldname_of_skip)
+                            else if (skipToIndex == curIndex)
                             {
                                 errorsEncountered = true;
                                 worksheetErrorsEncountered = true;
@@ -1083,7 +1103,7 @@ namespace generatexml
                         break;
                     case "filter":
                         // Expected format: column operator value or column = value
-                        var filterMatch = Regex.Match(value, @"^(\w+)\s*(?:(=|!=|<>|>|<|>=|<=)\s*)?(.+)$");
+                        var filterMatch = FilterMatchRegex.Match(value);
                         if (filterMatch.Success)
                         {
                             question.ResponseFilters.Add(new Filter
@@ -1290,7 +1310,7 @@ namespace generatexml
         private void ParseParameter(string paramStr, Question question, string worksheetName, string fieldName)
         {
             // Expected format: @paramName = fieldName
-            var match = System.Text.RegularExpressions.Regex.Match(paramStr, @"^(@?\w+)\s*=\s*(\w+)$");
+            var match = ParameterRegex.Match(paramStr);
             if (match.Success)
             {
                 var param = new CalculationParameter
@@ -1318,7 +1338,7 @@ namespace generatexml
         private void ParseWhenCondition(string whenStr, Question question, string worksheetName, string fieldName)
         {
             // Expected format: field operator value => result
-            var match = System.Text.RegularExpressions.Regex.Match(whenStr, @"^(\w+)\s+(=|!=|<>|>=|<=|>|<)\s+(.+?)\s*=>\s*(.+)$");
+            var match = WhenConditionRegex.Match(whenStr);
             if (match.Success)
             {
                 var condition = new CaseCondition

@@ -3,6 +3,7 @@ using System;
 using System.IO;
 using System.IO.Compression;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using System.Threading.Tasks;
@@ -23,18 +24,16 @@ namespace generatexml
             InitializeComponent();
         }
 
-        // Version
-        readonly string swVer = "2025-12-07";
-
         private void Main_Load(object sender, EventArgs e)
         {
             // Load configuration from JSON file
             config = JsonConvert.DeserializeObject<AppConfig>(File.ReadAllText("config.json"));
 
-
-
-            // Show version
-            labelVersion.Text = string.Concat("Version: ", swVer);
+            // Show version from AssemblyInfo
+            var version = Assembly.GetExecutingAssembly()
+                .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+                ?.InformationalVersion ?? "Unknown";
+            labelVersion.Text = string.Concat("Version: ", version);
         }
 
         // Flags to determine if spreadsheet has errors
@@ -55,6 +54,9 @@ namespace generatexml
 
         // List of Question objects
         public List<Question> QuestionList = new List<Question>();
+
+        // Cache for validated QuestionLists - eliminates duplicate worksheet reads
+        private Dictionary<string, List<Question>> questionListCache = new Dictionary<string, List<Question>>();
 
         // Dictionary to hold the primary keys
         Dictionary<string, string> Primary_Keys = new Dictionary<string, string>();
@@ -85,27 +87,31 @@ namespace generatexml
             logstring.Add("Log file for: " + config.excelFile);
             Primary_Keys.Clear();
             generatedFiles.Clear();
+            questionListCache.Clear();
             totalQuestions = 0;
             processedQuestions = 0;
             stopwatch.Restart();
 
             // Create progress reporter for UI updates
-            // processedQuestions goes 1 to 680 (340 validation + 340 generation)
-            // Display as 1 to 340 by dividing by 2
+            // Only validation phase reads Excel - generation uses cached data and is very fast
             var progress = new Progress<(string worksheet, string fieldName, string phase)>(report =>
             {
-                processedQuestions++;
-                if (totalQuestions > 0)
+                if (report.phase == "Validating")
                 {
-                    // Progress bar: 0-100% across both phases
-                    int percentage = (int)((processedQuestions * 100.0) / (totalQuestions * 2));
-                    progressBar.Value = Math.Min(percentage, 100);
-
-                    // Display count: divide by 2 so it shows 1-340 once (not twice)
-                    int displayedCount = (processedQuestions + 1) / 2;
-                    labelProgress.Text = $"{displayedCount} / {totalQuestions}";
+                    processedQuestions++;
+                    if (totalQuestions > 0)
+                    {
+                        int percentage = (int)((processedQuestions * 100.0) / totalQuestions);
+                        progressBar.Value = Math.Min(percentage, 100);
+                        labelProgress.Text = $"{processedQuestions} / {totalQuestions}";
+                    }
+                    labelStatus.Text = $"Validating: {report.worksheet} - {report.fieldName}";
                 }
-                labelStatus.Text = $"{report.phase}: {report.worksheet} - {report.fieldName}";
+                else if (report.phase == "Generating")
+                {
+                    // Generation is fast (uses cached data), just show status
+                    labelStatus.Text = $"Generating XML: {report.worksheet}";
+                }
             });
 
             try
@@ -137,13 +143,27 @@ namespace generatexml
                     MessageBox.Show("Done Building the xml file(s) and the manifest. No errors were found. \r\rAll files have been packaged in " + config.surveyId + ".zip. \r\rPlease refer to the log file.", "SUCCESS", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
             }
+            catch (FileNotFoundException fnfEx)
+            {
+                stopwatch.Stop();
+                Console.WriteLine("File not found: " + fnfEx.Message);
+                labelStatus.Text = "Error: Excel file not found";
+                MessageBox.Show("ERROR: Excel file not found!\r\n\r" + fnfEx.Message, "FILE NOT FOUND", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                logstring.Add("ERROR: Excel file not found!");
+                logstring.Add(fnfEx.Message);
+                logstring.Add("\r--------------------------------------------------------------------------------");
+                logstring.Add("End of log file");
+                logstring.Add("--------------------------------------------------------------------------------");
+                writeLogfile();
+            }
             catch (Exception ex)
             {
                 stopwatch.Stop();
                 Console.WriteLine("Error msg " + ex.Message);
                 labelStatus.Text = $"Error occurred after {stopwatch.Elapsed.TotalSeconds:F1} seconds";
-                MessageBox.Show("ERROR: There are unexpected errors with the Excel Data Dictionary!" + ex.Message, "ERROR", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                logstring.Add("ERROR: There are unexpected errors with the Excel Data Dictionary!" + ex.Message);
+                MessageBox.Show("ERROR: There are unexpected errors with the Excel Data Dictionary!\r\n\r" + ex.Message, "ERROR", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                logstring.Add("ERROR: There are unexpected errors with the Excel Data Dictionary!");
+                logstring.Add(ex.Message);
                 logstring.Add("\r--------------------------------------------------------------------------------");
                 logstring.Add("End of log file");
                 logstring.Add("--------------------------------------------------------------------------------");
@@ -164,6 +184,12 @@ namespace generatexml
 
             try
             {
+                // Check if Excel file exists before attempting to open
+                if (!File.Exists(config.excelFile))
+                {
+                    throw new FileNotFoundException($"Excel file not found: {config.excelFile}\r\n\rPlease check the path in config.json and ensure the file exists.");
+                }
+
                 // Open the Excel file
                 xlApp = new Excel.Application();
                 xlWorkBook = xlApp.Workbooks.Open(@config.excelFile, 0, true, 5, "", "", true,
@@ -181,7 +207,7 @@ namespace generatexml
                     }
                 }
 
-                // Validation pass: Read each sheet and validate
+                // Validation pass: Read each sheet, validate, and cache results
                 foreach (Worksheet worksheet in xlWorkBook.Worksheets)
                 {
                     if (worksheet.Name.Length >= 3 &&
@@ -198,36 +224,41 @@ namespace generatexml
                             errorsEncountered = true;
                         }
                         logstring.AddRange(excelReader.logstring);
+
+                        // Cache the QuestionList for reuse during generation (eliminates duplicate Excel read)
+                        questionListCache[worksheet.Name] = excelReader.QuestionList;
                     }
                 }
 
-                // Generation pass: Generate XML files if no errors
+                // Generation pass: Use cached QuestionLists (no Excel re-read needed)
                 if (!errorsEncountered)
                 {
                     List<string> xmlFiles = new List<string>();
+
+                    // Generate XML from cached data - no Excel reads required
+                    foreach (var cachedEntry in questionListCache)
+                    {
+                        string worksheetName = cachedEntry.Key;
+                        QuestionList = cachedEntry.Value;
+
+                        string xmlFileName = worksheetName.Replace("_dd", ".xml").Replace("_xml", ".xml");
+                        xmlFiles.Add(xmlFileName);
+
+                        // Report progress once per worksheet (generation is very fast)
+                        progress.Report((worksheetName, "", "Generating"));
+
+                        // Write to the XML file using cached QuestionList
+                        XmlGenerator xmlGenerator = new XmlGenerator();
+                        xmlGenerator.WriteXML(worksheetName, QuestionList, config.outputPath);
+                        logstring.AddRange(xmlGenerator.logstring);
+                        // Track the generated XML file
+                        generatedFiles.Add(Path.Combine(config.outputPath, xmlFileName));
+                    }
+
+                    // Process crfs worksheet (still needs to read from Excel, but only once)
                     foreach (Worksheet worksheet in xlWorkBook.Worksheets)
                     {
-                        if (worksheet.Name.Length >= 3 &&
-                            (worksheet.Name.Substring(worksheet.Name.Length - 3) == "_dd" ||
-                             (worksheet.Name.Length >= 4 && worksheet.Name.Substring(worksheet.Name.Length - 4) == "_xml")))
-                        {
-                            string xmlFileName = worksheet.Name.Replace("_dd", ".xml").Replace("_xml", ".xml");
-                            xmlFiles.Add(xmlFileName);
-                            ExcelReader excelReader = new ExcelReader();
-                            excelReader.CreateQuestionList(worksheet, (ws, field) =>
-                            {
-                                progress.Report((ws, field, "Generating"));
-                            });
-                            QuestionList = excelReader.QuestionList;
-                            // Write to the XML file
-                            XmlGenerator xmlGenerator = new XmlGenerator();
-                            xmlGenerator.WriteXML(worksheet.Name, QuestionList, config.outputPath);
-                            logstring.AddRange(xmlGenerator.logstring);
-                            // Track the generated XML file
-                            generatedFiles.Add(Path.Combine(config.outputPath, xmlFileName));
-                        }
-                        // Process crfs worksheet
-                        else if (worksheet.Name == "crfs")
+                        if (worksheet.Name == "crfs")
                         {
                             CrfReader crfReader = new CrfReader();
                             List<Crf> crfs = crfReader.ReadCrfsWorksheet(worksheet);
@@ -249,6 +280,7 @@ namespace generatexml
                             logstring.Add("Successfully generated survey_manifest.gistx");
                             // Track the generated manifest file
                             generatedFiles.Add(manifestPath);
+                            break; // Only one crfs worksheet
                         }
                     }
                 }
