@@ -926,51 +926,51 @@ namespace generatexml
 
                         foreach (string skip in skips)
                         {
-                            string[] words = skip.Split(' ');
-                            fieldname_to_check = words[2];
-                            fieldname_to_skip_to = words[words.Length - 1];
-                        }
+                            string[] words = skip.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                            fieldname_to_check = words[2].Trim().Trim(',');
+                            fieldname_to_skip_to = words[words.Length - 1].Trim();
 
-                        int curIndex = fieldnameIndex[curFieldname];
+                            int curIndex = fieldnameIndex[curFieldname];
 
-                        // Check if the field name to check value of exists and is before the current question
-                        if (fieldnameIndex.TryGetValue(fieldname_to_check, out int checkIndex))
-                        {
-                            if (checkIndex > curIndex)
+                            // Check if the field name to check value of exists and is before the current question
+                            if (fieldnameIndex.TryGetValue(fieldname_to_check, out int checkIndex))
+                            {
+                                if (checkIndex > curIndex)
+                                {
+                                    errorsEncountered = true;
+                                    worksheetErrorsEncountered = true;
+                                    logstring.Add("ERROR - Skip: In worksheet '" + worksheet + "', the skip for FieldName '" + curFieldname + "' checks skip for a FieldName AFTER the current question: " + fieldname_to_check);
+                                }
+                            }
+                            else
                             {
                                 errorsEncountered = true;
                                 worksheetErrorsEncountered = true;
-                                logstring.Add("ERROR - Skip: In worksheet '" + worksheet + "', the skip for FieldName '" + curFieldname + "' checks skip for a FieldName AFTER the current question: " + fieldname_to_check);
+                                logstring.Add("ERROR - Skip: In worksheet '" + worksheet + "', the skip for FieldName '" + curFieldname + "' checks skip of a nonexistent FieldName: " + fieldname_to_check);
                             }
-                        }
-                        else
-                        {
-                            errorsEncountered = true;
-                            worksheetErrorsEncountered = true;
-                            logstring.Add("ERROR - Skip: In worksheet '" + worksheet + "', the skip for FieldName '" + curFieldname + "' checks skip of a nonexistent FieldName: " + fieldname_to_check);
-                        }
 
-                        // Check if the field name to skip to is legitimate - exists and is after the current question
-                        if (fieldnameIndex.TryGetValue(fieldname_to_skip_to, out int skipToIndex))
-                        {
-                            if (skipToIndex < curIndex)
+                            // Check if the field name to skip to is legitimate - exists and is after the current question
+                            if (fieldnameIndex.TryGetValue(fieldname_to_skip_to, out int skipToIndex))
+                            {
+                                if (skipToIndex < curIndex)
+                                {
+                                    errorsEncountered = true;
+                                    worksheetErrorsEncountered = true;
+                                    logstring.Add("ERROR - Skip: In worksheet '" + worksheet + "', the skip for FieldName '" + curFieldname + "' skips to a FieldName BEFORE the current question: " + fieldname_to_skip_to);
+                                }
+                                else if (skipToIndex == curIndex)
+                                {
+                                    errorsEncountered = true;
+                                    worksheetErrorsEncountered = true;
+                                    logstring.Add("ERROR - Skip: In worksheet '" + worksheet + "', the skip for FieldName '" + curFieldname + "' skips to the current question: " + fieldname_to_skip_to);
+                                }
+                            }
+                            else
                             {
                                 errorsEncountered = true;
                                 worksheetErrorsEncountered = true;
-                                logstring.Add("ERROR - Skip: In worksheet '" + worksheet + "', the skip for FieldName '" + curFieldname + "' skips to a FieldName BEFORE the current question: " + fieldname_to_skip_to);
+                                logstring.Add("ERROR - Skip: In worksheet '" + worksheet + "', the skip for FieldName '" + curFieldname + "' skips to a nonexistent FieldName: " + fieldname_to_skip_to);
                             }
-                            else if (skipToIndex == curIndex)
-                            {
-                                errorsEncountered = true;
-                                worksheetErrorsEncountered = true;
-                                logstring.Add("ERROR - Skip: In worksheet '" + worksheet + "', the skip for FieldName '" + curFieldname + "' skips to the current question: " + fieldname_to_skip_to);
-                            }
-                        }
-                        else
-                        {
-                            errorsEncountered = true;
-                            worksheetErrorsEncountered = true;
-                            logstring.Add("ERROR - Skip: In worksheet '" + worksheet + "', the skip for FieldName '" + curFieldname + "' skips to a nonexistent FieldName: " + fieldname_to_skip_to);
                         }
                     }
                 }
@@ -1196,13 +1196,21 @@ namespace generatexml
                 {
                     case "calc":
                         currentCalcType = value.ToLower();
-                        if (Enum.TryParse(value, true, out CalculationType calcType))
+                        if (currentCalcType == "age_from_date")
+                        {
+                            question.CalculationType = CalculationType.AgeFromDate;
+                        }
+                        else if (currentCalcType == "age_at_date")
+                        {
+                            question.CalculationType = CalculationType.AgeAtDate;
+                        }
+                        else if (Enum.TryParse(value, true, out CalculationType calcType))
                         {
                             question.CalculationType = calcType;
                         }
                         else
                         {
-                            logstring.Add($"ERROR - Calculation: Invalid calculation type '{value}' for FieldName '{fieldName}' in worksheet '{worksheetName}'. Must be 'query', 'case', 'constant', 'lookup', 'math', or 'concat'.");
+                            logstring.Add($"ERROR - Calculation: Invalid calculation type '{value}' for FieldName '{fieldName}' in worksheet '{worksheetName}'. Must be 'query', 'case', 'constant', 'lookup', 'math', 'concat', 'age_from_date', or 'age_at_date'.");
                             errorsEncountered = true;
                             worksheetErrorsEncountered = true;
                         }
@@ -1228,14 +1236,14 @@ namespace generatexml
                         break;
 
                     case "value":
-                        if (currentCalcType == "constant")
+                        if (currentCalcType == "constant" || currentCalcType == "age_from_date" || currentCalcType == "age_at_date")
                         {
                             question.CalculationConstantValue = value;
                         }
                         break;
 
                     case "field":
-                        if (currentCalcType == "lookup")
+                        if (currentCalcType == "lookup" || currentCalcType == "age_from_date" || currentCalcType == "age_at_date")
                         {
                             question.CalculationLookupField = value;
                         }
@@ -1258,7 +1266,7 @@ namespace generatexml
                         break;
 
                     case "separator":
-                        if (currentCalcType == "concat")
+                        if (currentCalcType == "concat" || currentCalcType == "age_at_date")
                         {
                             question.CalculationConcatSeparator = value;
                         }
@@ -1477,6 +1485,36 @@ namespace generatexml
                     if (question.CalculationConcatParts.Count == 0)
                     {
                         logstring.Add($"ERROR - Calculation: Concat calculation for FieldName '{fieldName}' in worksheet '{worksheetName}' must have at least 1 part.");
+                        errorsEncountered = true;
+                        worksheetErrorsEncountered = true;
+                    }
+                    break;
+
+                case CalculationType.AgeFromDate:
+                    if (string.IsNullOrEmpty(question.CalculationLookupField))
+                    {
+                        logstring.Add($"ERROR - Calculation: AgeFromDate calculation for FieldName '{fieldName}' in worksheet '{worksheetName}' is missing required 'field' field.");
+                        errorsEncountered = true;
+                        worksheetErrorsEncountered = true;
+                    }
+                    if (string.IsNullOrEmpty(question.CalculationConstantValue))
+                    {
+                        logstring.Add($"ERROR - Calculation: AgeFromDate calculation for FieldName '{fieldName}' in worksheet '{worksheetName}' is missing required 'value' field.");
+                        errorsEncountered = true;
+                        worksheetErrorsEncountered = true;
+                    }
+                    break;
+
+                case CalculationType.AgeAtDate:
+                    if (string.IsNullOrEmpty(question.CalculationLookupField))
+                    {
+                        logstring.Add($"ERROR - Calculation: AgeAtDate calculation for FieldName '{fieldName}' in worksheet '{worksheetName}' is missing required 'field' field.");
+                        errorsEncountered = true;
+                        worksheetErrorsEncountered = true;
+                    }
+                    if (string.IsNullOrEmpty(question.CalculationConstantValue))
+                    {
+                        logstring.Add($"ERROR - Calculation: AgeAtDate calculation for FieldName '{fieldName}' in worksheet '{worksheetName}' is missing required 'value' field.");
                         errorsEncountered = true;
                         worksheetErrorsEncountered = true;
                     }

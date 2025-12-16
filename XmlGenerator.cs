@@ -424,6 +424,17 @@ namespace generatexml
                 case CalculationType.Concat:
                     GenerateConcatCalculation(outputFile, question);
                     break;
+
+                case CalculationType.AgeFromDate:
+                    outputFile.WriteLine($"\t\t<calculation type='age_from_date' field='{question.CalculationLookupField}' value='{question.CalculationConstantValue}'/>");
+                    break;
+
+                case CalculationType.AgeAtDate:
+                    string separatorAttr = string.IsNullOrEmpty(question.CalculationConcatSeparator)
+                        ? ""
+                        : $" separator='{question.CalculationConcatSeparator}'";
+                    outputFile.WriteLine($"\t\t<calculation type='age_at_date' field='{question.CalculationLookupField}' value='{question.CalculationConstantValue}'{separatorAttr}/>");
+                    break;
             }
         }
 

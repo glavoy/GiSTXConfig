@@ -17,7 +17,9 @@ namespace generatexml
         Constant,
         Lookup,
         Math,
-        Concat
+        Concat,
+        AgeFromDate,
+        AgeAtDate
     }
 
     public class Filter
