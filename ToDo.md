@@ -1,5 +1,6 @@
 ## To Do
 
+- [ ] create comprehensive documentation on how to set up data dictionary
 - [ ] add database file name back to from config.json - for minor changes, we can use the same database - i.e. adding a new field.
 - [ ] update ro remove the reference to '(see The CRFS Worksheet)' in the ReadMe.md
 - [ ] Add 'time' type

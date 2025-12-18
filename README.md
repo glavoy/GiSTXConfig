@@ -269,12 +269,14 @@ Maximum character length for text fields.
 **Requirements:**
 - Required for `text`, `text_integer`, and `phone_num` field types
 - Must be a number between 1 and 2000
-- Leave blank (or enter `-9`) for non-text fields
+- Leave blank for non-text fields
+- Use `=` to force length
 
 **Examples:**
-- `100` for a name field
+- `80` for a name field
 - `10` for a phone number
-- `500` for a comments field
+- `255` for a comments field
+- `=3` user must enter 3 characters and 3 characters will always be saved in the database
 
 ---
 
@@ -543,7 +545,7 @@ preskip: if_condition, skip_to_target
 **Examples:**
 ```
 preskip: if has_children = 0, skip to occupation
-preskip: if age < 18, skup to comments
+preskip: if age < 18, skip to comments
 ```
 
 **How it works:**
@@ -633,7 +635,7 @@ This field is auto-calculated by the system
 
 ## The CRFS Worksheet
 
-The `crfs` worksheet is the backbone of your survey configuration. It defines the available forms, their hierarchy, ID generation rules, and auto-repeat behaviors.
+The `crfs` worksheet is the backbone of the survey configuration. It defines the available forms, their hierarchy, ID generation rules, and auto-repeat behaviors.
 
 ### CRFS Worksheet Structure
 
@@ -644,7 +646,7 @@ The `crfs` worksheet must have the following columns:
 | `display_order` | Order in which forms appear (10, 20, 30, etc.) |
 | `tablename` | Unique identifier matching the `_dd` worksheet name |
 | `displayname` | Human-readable form name shown to users |
-| `isbase` | `1` if this is a top-level form, `0` if child form |
+| `isbase` | `1` if this is a top-level form, `0` if child form (repeat form) |
 | `primarykey` | Primary key field(s), comma-separated if composite |
 | `linkingfield` | Field that links to parent (for child forms) |
 | `parenttable` | Parent table name (for child forms) |
@@ -652,7 +654,7 @@ The `crfs` worksheet must have the following columns:
 | `idconfig` | JSON object defining ID generation rules |
 | `requireslink` | `1` if form requires a parent link, `0` otherwise |
 | `repeat_count_field` | Field containing count of child records |
-| `auto_start_repeat` | `0`=disabled, `1`=prompt, `2`=force auto-repeat |
+| `auto_start_repeat` | `0`=Flexible, `1`=Warn, `2`=Force, `3`=Auto-Sync |
 | `repeat_enforce_count` | `1` to enforce exact count, `0` otherwise |
 | `display_fields` | Comma-separated list of fields to show in record lists |
 
@@ -1051,12 +1053,6 @@ ERROR - LogicCheck: FieldName 'confirm_age' in worksheet 'enrollment_dd' has inv
 - Verify you have a `crfs` worksheet
 - Check that the `crfs` worksheet has the correct structure
 - Review log file for CRFS-related errors
-
----
-
-## Version
-
-Current Version: 2025-11-19
 
 ---
 

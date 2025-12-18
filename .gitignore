@@ -31,5 +31,4 @@ _ReSharper*/
 *.resharper.user
 [Tt]humbs.db
 
-Excel/~$survey.xlsx
-Excel/~$prismcss.xlsx
+config.geoff.json

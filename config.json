@@ -1,7 +1,7 @@
 {
-  "excelFile": "C:\\Users\\glavoy\\Dropbox\\IDRC\\R21TestNegative\\R21 Test Negative Data Dictionary_2025_12_16.xlsx",
-  "csvFiles": "C:\\Users\\glavoy\\Dropbox\\IDRC\\R21TestNegative\\",
-  "outputPath": "C:\\Users\\glavoy\\AppData\\Local\\GiSTX\\zips\\",
-  "surveyName": "R21 Test Negative 2025-12-16",
-  "surveyId": "r21_test_negative_2025_12_16"
+  "excelFile": "C:\\Users\\xxx\\xxx\\Data Dictionary name.xlsx",
+  "csvFiles": "C:\\Users\\xxx\\path to all csv files\\",
+  "outputPath": "C:\\Users\\xxx\\AppData\\Local\\GiSTX\\zips\\",
+  "surveyName": "Human-readable survey name displayed in the app",
+  "surveyId": "unique_survey_identifier_lowercase_no_spaces)"
 }
