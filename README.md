@@ -455,6 +455,17 @@ Use `and` / `or` operators for complex conditions:
 (status = 1 or status = 2); 'Invalid status value'
 ```
 
+#### Multiple Logic Checks
+
+It is possible to have more than one logic check per question. Just ensure each logic check is on a separate line.
+
+**Example:**
+```
+vx_dose3_date < vx_dose2_date; 'Date of dose 3 cannot be before date of dose 2'
+vx_dose3_date < dob; 'Date of vaccination cannot be before date of birth!'
+```
+
+
 #### Unique Check
 
 Ensures the value is unique in the database table:

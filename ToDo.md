@@ -11,7 +11,15 @@
 - [ ] revisit verification of field names, etc for dynamic responses
 	- Referenced field names must exist in the same worksheet
 	- Referenced fields must appear before the current question
-- [ ] re-examine how skips are preformed - add compund logic for skips - update README - it is currently incorrect
+- [ ] re-examine how skips are performed - add compund logic for skips - update README - it is currently incorrect
 - [ ] check `auto_start_repeat` and `repeat_enforce_count` in README
 - [ ] add more checks for 'skips' - cannot allow a preskip on the samek question. i.e. cannot use the very filedname for the question in the preskip
 - [ ] 
+- [ ] 
+- [ ] 
+
+When 
+dfgdg
+
+- [ ] 
+- [ ] dgfdg

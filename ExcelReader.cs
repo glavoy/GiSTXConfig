@@ -219,35 +219,43 @@ namespace generatexml
 
 
                                 // Get Logic check
-                                curQuestion.logicCheck = GetCellValue(data, rowCount, 9);
-                                if (curQuestion.logicCheck.Trim().StartsWith("unique;"))
+                                string logicCheckRaw = GetCellValue(data, rowCount, 9);
+                                if (!string.IsNullOrWhiteSpace(logicCheckRaw))
                                 {
-                                    string[] parts = curQuestion.logicCheck.Split(new char[] { ';' }, 2);
-                                    if (parts.Length == 2)
+                                    string[] logicChecks = logicCheckRaw.Split(new[] { "\n", "\r\n" }, StringSplitOptions.RemoveEmptyEntries);
+                                    foreach (string check in logicChecks)
                                     {
-                                        string message = parts[1].Trim();
-                                        if (message.StartsWith("'") && message.EndsWith("'"))
+                                        string trimmedCheck = check.Trim();
+                                        if (trimmedCheck.StartsWith("unique;"))
                                         {
-                                            curQuestion.uniqueCheckMessage = message.Trim('\'');
-                                            curQuestion.logicCheck = "";
+                                            string[] parts = trimmedCheck.Split(new char[] { ';' }, 2);
+                                            if (parts.Length == 2)
+                                            {
+                                                string message = parts[1].Trim();
+                                                if (message.StartsWith("'") && message.EndsWith("'"))
+                                                {
+                                                    curQuestion.uniqueCheckMessage = message.Trim('\'');
+                                                }
+                                                else
+                                                {
+                                                    errorsEncountered = true;
+                                                    worksheetErrorsEncountered = true;
+                                                    logstring.Add("ERROR - LogicCheck: FieldName '" + curQuestion.fieldName + "' in worksheet '" + worksheet.Name + "' has invalid syntax for unique check message (must be in single quotes): " + trimmedCheck);
+                                                }
+                                            }
+                                            else
+                                            {
+                                                errorsEncountered = true;
+                                                worksheetErrorsEncountered = true;
+                                                logstring.Add("ERROR - LogicCheck: FieldName '" + curQuestion.fieldName + "' in worksheet '" + worksheet.Name + "' has invalid syntax for unique check (missing message): " + trimmedCheck);
+                                            }
                                         }
                                         else
                                         {
-                                            errorsEncountered = true;
-                                            worksheetErrorsEncountered = true;
-                                            logstring.Add("ERROR - LogicCheck: FieldName '" + curQuestion.fieldName + "' in worksheet '" + worksheet.Name + "' has invalid syntax for unique check message (must be in single quotes): " + curQuestion.logicCheck);
+                                            curQuestion.logicChecks.Add(trimmedCheck);
+                                            CheckLogicCheckSyntax(worksheet.Name, trimmedCheck, curQuestion.fieldName);
                                         }
                                     }
-                                    else
-                                    {
-                                        errorsEncountered = true;
-                                        worksheetErrorsEncountered = true;
-                                        logstring.Add("ERROR - LogicCheck: FieldName '" + curQuestion.fieldName + "' in worksheet '" + worksheet.Name + "' has invalid syntax for unique check (missing message): " + curQuestion.logicCheck);
-                                    }
-                                }
-                                else if (curQuestion.logicCheck != "")
-                                {
-                                    CheckLogicCheckSyntax(worksheet.Name, curQuestion.logicCheck, curQuestion.fieldName);
                                 }
 
 
@@ -833,12 +841,12 @@ namespace generatexml
 
                 foreach (Question question in QuestionList)
                 {
-                    if (question.logicCheck != "")
+                    foreach (string logicCheck in question.logicChecks)
                     {
                         curFieldname = question.fieldName;
 
                         // New format: extract expression from "expression; 'message'"
-                        string[] parts = question.logicCheck.Split(new char[] { ';' }, 2);
+                        string[] parts = logicCheck.Split(new char[] { ';' }, 2);
                         string expression = parts[0].Trim();
 
                         // Extract potential field names from the expression

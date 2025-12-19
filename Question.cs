@@ -118,7 +118,7 @@ namespace generatexml
 
         public string lowerRange;
         public string upperRange;
-        public string logicCheck;
+        public List<string> logicChecks = new List<string>();
         public string uniqueCheckMessage = "";
         public string dontKnow;
         public string refuse;

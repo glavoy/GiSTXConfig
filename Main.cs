@@ -11,6 +11,7 @@ using System.Diagnostics;
 using Excel = Microsoft.Office.Interop.Excel;
 using Microsoft.Office.Interop.Excel;
 using GistConfigX;
+using System.Xml;
 
 namespace generatexml
 {
@@ -251,8 +252,17 @@ namespace generatexml
                         XmlGenerator xmlGenerator = new XmlGenerator();
                         xmlGenerator.WriteXML(worksheetName, QuestionList, config.outputPath);
                         logstring.AddRange(xmlGenerator.logstring);
+                        
+                        string fullXmlPath = Path.Combine(config.outputPath, xmlFileName);
+
+                        // Validate the generated XML
+                        if (!ValidateXmlSyntax(fullXmlPath))
+                        {
+                            errorsEncountered = true;
+                        }
+
                         // Track the generated XML file
-                        generatedFiles.Add(Path.Combine(config.outputPath, xmlFileName));
+                        generatedFiles.Add(fullXmlPath);
                     }
 
                     // Process crfs worksheet (still needs to read from Excel, but only once)
@@ -304,6 +314,29 @@ namespace generatexml
                 }
                 GC.Collect();
                 GC.WaitForPendingFinalizers();
+            }
+        }
+
+        private bool ValidateXmlSyntax(string filePath)
+        {
+            try
+            {
+                XmlDocument doc = new XmlDocument();
+                doc.Load(filePath);
+                return true;
+            }
+            catch (XmlException ex)
+            {
+                logstring.Add($"CRITICAL ERROR: XML Syntax Error in file '{Path.GetFileName(filePath)}'");
+                logstring.Add($"Details: {ex.Message}");
+                logstring.Add($"Line: {ex.LineNumber}, Position: {ex.LinePosition}");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                logstring.Add($"CRITICAL ERROR: Could not validate XML file '{Path.GetFileName(filePath)}'");
+                logstring.Add($"Details: {ex.Message}");
+                return false;
             }
         }
 

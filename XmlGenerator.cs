@@ -90,11 +90,11 @@ namespace generatexml
                         }
 
                         //  Logic Checks
-                        if (question.logicCheck != "")
+                        foreach (string logicCheck in question.logicChecks)
                         {
                             // New format: just output the logic check directly
                             outputFile.WriteLine("\t\t<logic_check>");
-                            outputFile.WriteLine(GenerateLogicChecks(question.logicCheck));
+                            outputFile.WriteLine(GenerateLogicChecks(logicCheck));
                             outputFile.WriteLine("\t\t</logic_check>");
                         }
 
