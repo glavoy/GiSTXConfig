@@ -22,6 +22,7 @@ namespace generatexml
         private static readonly Regex NumericOnlyRegex = new Regex(@"^\d+$", RegexOptions.Compiled);
         private static readonly Regex DecimalRegex = new Regex(@"^\d+(\.\d+)?$", RegexOptions.Compiled);
         private static readonly Regex DateRangeRegex = new Regex(@"^([+-])(\d+)([dwmy])$", RegexOptions.Compiled);
+        private static readonly Regex HardCodedDateRegex = new Regex(@"^\d{4}-\d{2}-\d{2}$", RegexOptions.Compiled);
         private static readonly Regex FieldNameRegex = new Regex(@"\b[a-z_][a-z0-9_]*\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex QuotedStringRegex = new Regex(@"'[^']*'", RegexOptions.Compiled);
         private static readonly Regex FilterMatchRegex = new Regex(@"^(\w+)\s*(?:(=|!=|<>|>|<|>=|<=)\s*)?(.+)$", RegexOptions.Compiled);
@@ -179,6 +180,19 @@ namespace generatexml
                                         errorsEncountered = true;
                                         worksheetErrorsEncountered = true;
                                         logstring.Add($"ERROR - Calculation: FieldName '{curQuestion.fieldName}' in worksheet '{worksheet.Name}' has calculation syntax but QuestionType is not 'automatic'.");
+                                    }
+                                }
+                                else if (rawResponses.Trim().StartsWith("mask:", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    if (curQuestion.questionType == "text")
+                                    {
+                                        curQuestion.mask = rawResponses.Trim().Substring(5).Trim();
+                                    }
+                                    else
+                                    {
+                                        errorsEncountered = true;
+                                        worksheetErrorsEncountered = true;
+                                        logstring.Add($"ERROR - Mask: FieldName '{curQuestion.fieldName}' in worksheet '{worksheet.Name}' has mask syntax but QuestionType is not 'text'.");
                                     }
                                 }
                                 else
@@ -594,9 +608,22 @@ namespace generatexml
 
             if (!DateRangeRegex.IsMatch(range))
             {
-                errorsEncountered = true;
-                worksheetErrorsEncountered = true;
-                logstring.Add("ERROR - " + rangeName + ": FieldName '" + fieldname + "' in worksheet '" + worksheet + "' has an invalid format for " + rangeName + ": " + range);
+                if (HardCodedDateRegex.IsMatch(range))
+                {
+                    // Check if the date is a valid date
+                    if (!DateTime.TryParseExact(range, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out _))
+                    {
+                        errorsEncountered = true;
+                        worksheetErrorsEncountered = true;
+                        logstring.Add("ERROR - " + rangeName + ": FieldName '" + fieldname + "' in worksheet '" + worksheet + "' has an invalid date value: " + range);
+                    }
+                }
+                else
+                {
+                    errorsEncountered = true;
+                    worksheetErrorsEncountered = true;
+                    logstring.Add("ERROR - " + rangeName + ": FieldName '" + fieldname + "' in worksheet '" + worksheet + "' has an invalid format for " + rangeName + ": " + range);
+                }
             }
         }
 
@@ -1212,13 +1239,21 @@ namespace generatexml
                         {
                             question.CalculationType = CalculationType.AgeAtDate;
                         }
+                        else if (currentCalcType == "date_offset")
+                        {
+                            question.CalculationType = CalculationType.DateOffset;
+                        }
+                        else if (currentCalcType == "date_diff")
+                        {
+                            question.CalculationType = CalculationType.DateDiff;
+                        }
                         else if (Enum.TryParse(value, true, out CalculationType calcType))
                         {
                             question.CalculationType = calcType;
                         }
                         else
                         {
-                            logstring.Add($"ERROR - Calculation: Invalid calculation type '{value}' for FieldName '{fieldName}' in worksheet '{worksheetName}'. Must be 'query', 'case', 'constant', 'lookup', 'math', 'concat', 'age_from_date', or 'age_at_date'.");
+                            logstring.Add($"ERROR - Calculation: Invalid calculation type '{value}' for FieldName '{fieldName}' in worksheet '{worksheetName}'. Must be 'query', 'case', 'constant', 'lookup', 'math', 'concat', 'age_from_date', 'age_at_date', 'date_offset', or 'date_diff'.");
                             errorsEncountered = true;
                             worksheetErrorsEncountered = true;
                         }
@@ -1244,16 +1279,23 @@ namespace generatexml
                         break;
 
                     case "value":
-                        if (currentCalcType == "constant" || currentCalcType == "age_from_date" || currentCalcType == "age_at_date")
+                        if (currentCalcType == "constant" || currentCalcType == "age_from_date" || currentCalcType == "age_at_date" || currentCalcType == "date_offset" || currentCalcType == "date_diff")
                         {
                             question.CalculationConstantValue = value;
                         }
                         break;
 
                     case "field":
-                        if (currentCalcType == "lookup" || currentCalcType == "age_from_date" || currentCalcType == "age_at_date")
+                        if (currentCalcType == "lookup" || currentCalcType == "age_from_date" || currentCalcType == "age_at_date" || currentCalcType == "date_offset" || currentCalcType == "date_diff")
                         {
                             question.CalculationLookupField = value;
+                        }
+                        break;
+
+                    case "unit":
+                        if (currentCalcType == "date_diff")
+                        {
+                            question.CalculationUnit = value;
                         }
                         break;
 
@@ -1523,6 +1565,54 @@ namespace generatexml
                     if (string.IsNullOrEmpty(question.CalculationConstantValue))
                     {
                         logstring.Add($"ERROR - Calculation: AgeAtDate calculation for FieldName '{fieldName}' in worksheet '{worksheetName}' is missing required 'value' field.");
+                        errorsEncountered = true;
+                        worksheetErrorsEncountered = true;
+                    }
+                    break;
+
+                case CalculationType.DateOffset:
+                    if (string.IsNullOrEmpty(question.CalculationLookupField))
+                    {
+                        logstring.Add($"ERROR - Calculation: DateOffset calculation for FieldName '{fieldName}' in worksheet '{worksheetName}' is missing required 'field' field.");
+                        errorsEncountered = true;
+                        worksheetErrorsEncountered = true;
+                    }
+                    if (string.IsNullOrEmpty(question.CalculationConstantValue))
+                    {
+                        logstring.Add($"ERROR - Calculation: DateOffset calculation for FieldName '{fieldName}' in worksheet '{worksheetName}' is missing required 'value' field.");
+                        errorsEncountered = true;
+                        worksheetErrorsEncountered = true;
+                    }
+                    else if (!DateRangeRegex.IsMatch(question.CalculationConstantValue))
+                    {
+                         logstring.Add($"ERROR - Calculation: DateOffset calculation for FieldName '{fieldName}' in worksheet '{worksheetName}' has invalid 'value' format: {question.CalculationConstantValue}. Expected format like '+28d', '-1y', etc.");
+                         errorsEncountered = true;
+                         worksheetErrorsEncountered = true;
+                    }
+                    break;
+
+                case CalculationType.DateDiff:
+                    if (string.IsNullOrEmpty(question.CalculationLookupField))
+                    {
+                        logstring.Add($"ERROR - Calculation: DateDiff calculation for FieldName '{fieldName}' in worksheet '{worksheetName}' is missing required 'field' field (start date).");
+                        errorsEncountered = true;
+                        worksheetErrorsEncountered = true;
+                    }
+                    if (string.IsNullOrEmpty(question.CalculationConstantValue))
+                    {
+                        logstring.Add($"ERROR - Calculation: DateDiff calculation for FieldName '{fieldName}' in worksheet '{worksheetName}' is missing required 'value' field (end date).");
+                        errorsEncountered = true;
+                        worksheetErrorsEncountered = true;
+                    }
+                    if (string.IsNullOrEmpty(question.CalculationUnit))
+                    {
+                        logstring.Add($"ERROR - Calculation: DateDiff calculation for FieldName '{fieldName}' in worksheet '{worksheetName}' is missing required 'unit' field.");
+                        errorsEncountered = true;
+                        worksheetErrorsEncountered = true;
+                    }
+                    else if (!new[] { "d", "w", "m", "y" }.Contains(question.CalculationUnit.ToLower()))
+                    {
+                        logstring.Add($"ERROR - Calculation: DateDiff calculation for FieldName '{fieldName}' in worksheet '{worksheetName}' has invalid 'unit': {question.CalculationUnit}. Must be 'd', 'w', 'm', or 'y'.");
                         errorsEncountered = true;
                         worksheetErrorsEncountered = true;
                     }

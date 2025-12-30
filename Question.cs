@@ -19,7 +19,9 @@ namespace generatexml
         Math,
         Concat,
         AgeFromDate,
-        AgeAtDate
+        AgeAtDate,
+        DateOffset,
+        DateDiff
     }
 
     public class Filter
@@ -115,6 +117,9 @@ namespace generatexml
         public string CalculationConcatSeparator { get; set; }
         public List<CalculationPart> CalculationConcatParts { get; set; } = new List<CalculationPart>();
 
+        // For date diff calculations
+        public string CalculationUnit { get; set; }
+
 
         public string lowerRange;
         public string upperRange;
@@ -124,5 +129,6 @@ namespace generatexml
         public string refuse;
         public string na;
         public string skip;
+        public string mask;
     }
 }

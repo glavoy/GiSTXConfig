@@ -63,6 +63,10 @@ namespace generatexml
                         if (question.maxCharacters != "-9")
                             outputFile.WriteLine(string.Concat("\t\t<maxCharacters>", question.maxCharacters, "</maxCharacters>"));
 
+                        // Input Mask
+                        if (!string.IsNullOrEmpty(question.mask))
+                            outputFile.WriteLine(string.Concat("\t\t<mask value=\"", question.mask, "\" />"));
+
 
                         if (!string.IsNullOrEmpty(question.uniqueCheckMessage))
                         {
@@ -434,6 +438,14 @@ namespace generatexml
                         ? ""
                         : $" separator='{question.CalculationConcatSeparator}'";
                     outputFile.WriteLine($"\t\t<calculation type='age_at_date' field='{question.CalculationLookupField}' value='{question.CalculationConstantValue}'{separatorAttr}/>");
+                    break;
+
+                case CalculationType.DateOffset:
+                    outputFile.WriteLine($"\t\t<calculation type='date_offset' field='{question.CalculationLookupField}' value='{question.CalculationConstantValue}' />");
+                    break;
+
+                case CalculationType.DateDiff:
+                    outputFile.WriteLine($"\t\t<calculation type='date_diff' field='{question.CalculationLookupField}' value='{question.CalculationConstantValue}' unit='{question.CalculationUnit}' />");
                     break;
             }
         }

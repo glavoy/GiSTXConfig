@@ -253,7 +253,18 @@ The actual question text shown to users.
 - Can include placeholder variables using `[[fieldname]]` syntax
   - Example: `"What is [[child_name]]'s date of birth?"`
 
-**Examples:**
+#### High-Visibility Warning Theme
+
+If the `QuestionText` starts with the word **"Warning"** (case-insensitive), the survey application automatically triggers a high-visibility theme:
+
+- **Visual Alert**: The question text is wrapped in an amber-colored box with an orange border and a warning icon.
+- **Smart Titles**: For `information` question types, the header title automatically changes from "Information" to "Warning".
+- **Broad Support**: This works across all visible question types (radio, checkbox, text, etc.).
+
+**Example:**
+`Warning: Please ensure you have obtained written consent before proceeding.`
+
+**Examples of Question Text:**
 ```
 What is your age?
 How many people live in this household?
@@ -377,6 +388,156 @@ Use `[[fieldname]]` to reference values from previous questions:
 
 ---
 
+### Input Masking (Text Fields)
+
+You can apply input masks to `text` type questions using the `Responses` column. This helps surveyors follow a specific format (like barcodes or IDs) and automatically inserts fixed characters like dashes.
+
+**Syntax:**
+```
+mask:PATTERN
+```
+
+#### Mask Pattern Syntax
+
+The syntax uses a "regex-style" approach to avoid ambiguity with literal text.
+
+- **Placeholders**: Wrap any valid regular expression character class in square brackets `[]`. Each pair of brackets represents **exactly one character**.
+  - `[0-9]` : Exactly one digit.
+  - `[A-Z]` : Exactly one letter.
+  - `[A-Z0-9]` : Exactly one alphanumeric character.
+- **Literals**: Anything outside of square brackets is treated as literal text.
+
+#### Features
+
+1. **Explicit Literals**: You can safely use any character as literal text. For example, `Part A: [0-9]` will auto-populate `Part A: ` and then wait for a digit.
+2. **Auto-population**: If a mask starts with literal characters (like `R21-`), these are automatically filled in when the question loads.
+3. **Auto-insertion**: As the user types, literals in the middle (like the second `-`) are automatically inserted.
+4. **Uppercase Enforcement**: All input is automatically converted to uppercase.
+
+**Example:**
+To validate a format like `R21-123-A1B2`:
+
+```
+mask:R21-[0-9][0-9][0-9]-[A-Z0-9][0-9A-Z][A-Z0-9][A-Z0-9]
+```
+
+**XML Output:**
+```xml
+<question type='text' fieldname='barcode' fieldtype='text'>
+    <text>Enter R21 STUDY barcode</text>
+    <maxCharacters>=12</maxCharacters>
+    <mask value="R21-[0-9][0-9][0-9]-[A-Z0-9][0-9A-Z][A-Z0-9][A-Z0-9]" />
+</question>
+```
+
+---
+
+### Automatic Calculations
+
+For questions with `QuestionType: automatic`, use the `Responses` column to define the calculation logic.
+
+#### 1. Constant Value
+Assigns a static value to the field.
+
+```
+calc:constant
+value:1
+```
+
+#### 2. Lookup Value
+Copies a value from another field.
+
+```
+calc:lookup
+field:participant_name
+```
+
+#### 3. SQL Query
+Executes a SQL query against the local database.
+
+```
+calc:query
+sql:SELECT count(*) FROM members WHERE hhid = @hhid
+param:@hhid = hhid
+```
+
+#### 4. Math Calculation
+Performs basic arithmetic (+, -, *, /) on two or more values.
+
+```
+calc:math
+operator:+
+part:lookup price
+part:constant 10
+```
+
+#### 5. Concatenation
+Joins multiple text values.
+
+```
+calc:concat
+separator:, 
+part:lookup first_name
+part:lookup last_name
+```
+
+#### 6. Case Logic
+Conditional logic (like a switch/case statement).
+
+```
+calc:case
+when:age < 18 => Minor
+when:age >= 18 => Adult
+else:Unknown
+```
+
+#### 7. Age From Date
+Calculates age in years based on a date field.
+
+```
+calc:age_from_date
+field:dob
+value:today
+```
+
+#### 8. Age At Date
+Calculates age in years at a specific reference date.
+
+```
+calc:age_at_date
+field:dob
+value:visit_date
+```
+
+#### 9. Date Offset
+Creates a new date by adding or subtracting time from a source date.
+
+**Format:** `[+/-][number][unit]`
+- Units: `d` (days), `w` (weeks), `m` (months), `y` (years)
+
+```
+calc:date_offset
+field:vx_dose1_date
+value:+28d
+```
+
+#### 10. Date Difference (Duration)
+Calculates the time elapsed between two dates in specific units.
+
+**Parameters:**
+- `field`: Start date
+- `value`: End date (or `today`)
+- `unit`: Unit of time (`d`=days, `w`=weeks, `m`=months, `y`=years)
+
+```
+calc:date_diff
+field:admission_date
+value:today
+unit:d
+```
+
+---
+
 ### LowerRange
 
 Minimum value for numeric validation or minimum date for date questions.
@@ -395,8 +556,9 @@ Minimum value for numeric validation or minimum date for date questions.
 #### For Date Fields
 
 **Requirements:**
-- Must be in special date offset format
-- Format: `[+/-][number][unit]` where unit is `d` (days), `w` (weeks), `m` (months), or `y` (years)
+- Must be in special date offset format OR a hard-coded date
+- Offset Format: `[+/-][number][unit]` where unit is `d` (days), `w` (weeks), `m` (months), or `y` (years)
+- Hard-coded Date Format: `yyyy-mm-dd`
 - Special value: `0` means today's date
 
 **Examples:**
@@ -405,6 +567,7 @@ Minimum value for numeric validation or minimum date for date questions.
 - `+6m` - Six months from now
 - `-30d` - 30 days ago
 - `+2w` - Two weeks from now
+- `2023-01-01` - Specific date
 
 ---
 
