@@ -14,12 +14,7 @@
 - [ ] re-examine how skips are performed - add compund logic for skips - update README - it is currently incorrect
 - [ ] check `auto_start_repeat` and `repeat_enforce_count` in README
 - [ ] add more checks for 'skips' - cannot allow a preskip on the samek question. i.e. cannot use the very filedname for the question in the preskip
-- [ ] 
-- [ ] 
+- [ ] verify logic check variables are not in the future - i.e. they alreayd have a value
+- [ ] add 'help' screen to gistcongigx so user can see all of the options - add link to README
 - [ ] 
 
-When 
-dfgdg
-
-- [ ] 
-- [ ] dgfdg
